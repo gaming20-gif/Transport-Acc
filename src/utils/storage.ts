@@ -1,0 +1,335 @@
+import type { Vehicle, Transaction, VehicleSummary, Trip } from '../types';
+
+const API_BASE = 'http://localhost:5000/api';
+
+// Help generate unique IDs for local use before sending, though MongoDB will also give _id
+const generateId = () => Math.random().toString(36).substring(2, 9);
+
+// ==============================
+// API CALLS
+// ==============================
+
+// Vehicles
+export const getVehicles = async (): Promise<Vehicle[]> => {
+  try {
+    const res = await fetch(`${API_BASE}/vehicles`);
+    return await res.json();
+  } catch (e) {
+    console.error('Error fetching vehicles', e);
+    return [];
+  }
+};
+
+export const addVehicle = async (vehicleData: Omit<Vehicle, 'id' | 'addedAt'>): Promise<Vehicle | null> => {
+  const newVehicle = {
+    ...vehicleData,
+    id: generateId(),
+    addedAt: new Date().toISOString().split('T')[0],
+  };
+  try {
+    const res = await fetch(`${API_BASE}/vehicles`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newVehicle)
+    });
+    return await res.json();
+  } catch (e) {
+    console.error('Error adding vehicle', e);
+    return null;
+  }
+};
+
+export const updateVehicle = async (updatedVehicle: Vehicle): Promise<void> => {
+  try {
+    await fetch(`${API_BASE}/vehicles/${updatedVehicle.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatedVehicle)
+    });
+  } catch (e) {
+    console.error('Error updating vehicle', e);
+  }
+};
+
+export const deleteVehicle = async (vehicleId: string): Promise<void> => {
+  try {
+    await fetch(`${API_BASE}/vehicles/${vehicleId}`, { method: 'DELETE' });
+  } catch (e) {
+    console.error('Error deleting vehicle', e);
+  }
+};
+
+
+// Transactions
+export const getTransactions = async (): Promise<Transaction[]> => {
+  try {
+    const res = await fetch(`${API_BASE}/transactions`);
+    const data = await res.json();
+    return data.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  } catch (e) {
+    console.error('Error fetching transactions', e);
+    return [];
+  }
+};
+
+export const addTransaction = async (transData: Omit<Transaction, 'id'>): Promise<Transaction | null> => {
+  const newTrans = {
+    ...transData,
+    id: generateId(),
+  };
+  try {
+    const res = await fetch(`${API_BASE}/transactions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newTrans)
+    });
+    return await res.json();
+  } catch (e) {
+    console.error('Error adding transaction', e);
+    return null;
+  }
+};
+
+export const updateTransaction = async (updatedTrans: Transaction): Promise<void> => {
+  try {
+    await fetch(`${API_BASE}/transactions/${updatedTrans.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatedTrans)
+    });
+  } catch (e) {
+    console.error('Error updating transaction', e);
+  }
+};
+
+export const deleteTransaction = async (transId: string): Promise<void> => {
+  try {
+    await fetch(`${API_BASE}/transactions/${transId}`, { method: 'DELETE' });
+  } catch (e) {
+    console.error('Error deleting transaction', e);
+  }
+};
+
+
+// Trips
+export const getTrips = async (): Promise<Trip[]> => {
+  try {
+    const res = await fetch(`${API_BASE}/trips`);
+    let trips = await res.json();
+    
+    // Client-side migration for old data structure if needed
+    trips = trips.map((trip: any) => {
+      if (!trip.expenses || !Array.isArray(trip.expenses)) {
+        trip.expenses = [];
+      }
+      return trip;
+    });
+    return trips;
+  } catch (e) {
+    console.error('Error fetching trips', e);
+    return [];
+  }
+};
+
+export const saveTrips = async (): Promise<void> => {
+  // This bulk save is mostly used for local storage logic, we can ignore for REST API
+  console.warn("saveTrips is deprecated in API mode");
+};
+
+export const addTrip = async (tripData: Omit<Trip, 'id'>): Promise<Trip | null> => {
+  const newTrip = {
+    ...tripData,
+    id: generateId(),
+  };
+  try {
+    const res = await fetch(`${API_BASE}/trips`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newTrip)
+    });
+    return await res.json();
+  } catch (e) {
+    console.error('Error adding trip', e);
+    return null;
+  }
+};
+
+export const updateTrip = async (updatedTrip: Trip): Promise<void> => {
+  try {
+    await fetch(`${API_BASE}/trips/${updatedTrip.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatedTrip)
+    });
+  } catch (e) {
+    console.error('Error updating trip', e);
+  }
+};
+
+export const deleteTrip = async (tripId: string): Promise<void> => {
+  try {
+    await fetch(`${API_BASE}/trips/${tripId}`, { method: 'DELETE' });
+  } catch (e) {
+    console.error('Error deleting trip', e);
+  }
+};
+
+
+// ==============================
+// BUSINESS LOGIC & SUMMARIES (PURE FUNCTIONS)
+// ==============================
+
+export const getVehicleSummary = (vehicleId: string, vehicles: Vehicle[], transactions: Transaction[]): VehicleSummary => {
+  const vehicle = vehicles.find((v) => v.id === vehicleId);
+  const vehicleNumber = vehicle ? vehicle.vehicleNumber : 'Unknown';
+
+  const txs = transactions.filter((t) => t.vehicleId === vehicleId);
+  let totalIncome = 0;
+  let totalExpense = 0;
+
+  txs.forEach((t) => {
+    if (t.type === 'income') {
+      totalIncome += t.amount;
+    } else {
+      totalExpense += t.amount;
+    }
+  });
+
+  return {
+    vehicleId,
+    vehicleNumber,
+    totalIncome,
+    totalExpense,
+    balance: totalIncome - totalExpense,
+  };
+};
+
+export const getGlobalSummary = (vehicles: Vehicle[], transactions: Transaction[]) => {
+  let totalIncome = 0;
+  let totalExpense = 0;
+
+  transactions.forEach((t) => {
+    if (t.type === 'income') {
+      totalIncome += t.amount;
+    } else {
+      totalExpense += t.amount;
+    }
+  });
+
+  return {
+    totalIncome,
+    totalExpense,
+    balance: totalIncome - totalExpense,
+    vehicleCount: vehicles.length,
+    transactionCount: transactions.length,
+  };
+};
+
+export const syncTripTransactions = async (trip: Trip): Promise<void> => {
+  // We'll let the backend or component handle this manually for simplicity
+  // Or fetch transactions and update
+  const currentTransactions = await getTransactions();
+  
+  // Clean up old transactions linked to this trip
+  const transactionsToDelete = currentTransactions.filter(t => t.tripId === trip.id);
+  for (const t of transactionsToDelete) {
+    await deleteTransaction(t.id);
+  }
+
+  // Create new income transaction for advance received
+  if (trip.advanceReceived && trip.advanceReceived > 0) {
+    await addTransaction({
+      vehicleId: trip.vehicleId,
+      date: trip.date,
+      type: 'income',
+      category: 'Freight Booking',
+      amount: trip.advanceReceived,
+      paymentMode: trip.paymentMode,
+      description: `Advance for Trip ${trip.tripNumber} (${trip.fromLocation} to ${trip.toLocation})`,
+      tripId: trip.id
+    });
+  }
+
+  // Create expense transactions
+  if (trip.expenses && trip.expenses.length > 0) {
+    for (const exp of trip.expenses) {
+      if (exp.amount > 0) {
+        let category: any = 'Other Expense';
+        
+        switch (exp.category) {
+          case 'Diesel': category = 'Diesel / Fuel'; break;
+          case 'Toll Tax': category = 'Toll Charges'; break;
+          case 'Driver Advance':
+          case 'Driver Salary': category = 'Driver Salary / Batta'; break;
+          case 'Repair & Maintenance': category = 'Maintenance & Repairs'; break;
+          case 'Tyre Expense': category = 'Tyre Expense'; break;
+          case 'Loading Expense':
+          case 'Unloading Expense': category = 'Loading/Unloading Labour'; break;
+          default: category = 'Other Expense';
+        }
+        
+        await addTransaction({
+          vehicleId: trip.vehicleId,
+          date: exp.date || trip.date,
+          type: 'expense',
+          category,
+          amount: exp.amount,
+          paymentMode: 'Cash', // Defaulting to Cash for trip expenses
+          description: `Trip ${trip.tripNumber}: ${exp.remarks || exp.category}`,
+          tripId: trip.id
+        });
+      }
+    }
+  }
+};
+
+export const generateNextTripNumber = async (): Promise<string> => {
+  const trips = await getTrips();
+  if (!trips || trips.length === 0) return 'TRP-0001';
+  
+  // Find highest number
+  let maxNum = 0;
+  trips.forEach(t => {
+    if (t.tripNumber && t.tripNumber.startsWith('TRP-')) {
+      const numPart = t.tripNumber.replace('TRP-', '');
+      const num = parseInt(numPart, 10);
+      if (!isNaN(num) && num > maxNum) {
+        maxNum = num;
+      }
+    }
+  });
+  
+  return `TRP-${String(maxNum + 1).padStart(4, '0')}`;
+};
+
+export const exportData = async (): Promise<string> => {
+  const data = {
+    vehicles: await getVehicles(),
+    transactions: await getTransactions(),
+    trips: await getTrips()
+  };
+  return JSON.stringify(data, null, 2);
+};
+
+export const importData = async (jsonData: string): Promise<boolean> => {
+  try {
+    const data = JSON.parse(jsonData);
+    if (data) {
+      const res = await fetch(`${API_BASE}/sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return res.ok;
+    }
+    return false;
+  } catch (e) {
+    console.error('Import failed', e);
+    return false;
+  }
+};
+
+export const initSampleData = async (): Promise<void> => {
+  // Not used in API mode since MongoDB acts as the true source
+  // We can add logic to seed MongoDB here if needed.
+};
