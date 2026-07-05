@@ -1,8 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Download, Truck, AlertCircle, Eye } from 'lucide-react';
+import { Download, Truck, AlertCircle, Eye, TrendingUp, TrendingDown, DollarSign, X } from 'lucide-react';
+import { 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  Legend, 
+  ResponsiveContainer 
+} from 'recharts';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { Vehicle, Transaction } from '../types';
+import { getGlobalSummary, getVehicleSummary } from '../utils/storage';
 
 interface ReportsProps {
   vehicles: Vehicle[];
@@ -21,6 +32,63 @@ export const Reports: React.FC<ReportsProps> = ({ vehicles, transactions }) => {
   const [summary, setSummary] = useState({ income: 0, expense: 0, balance: 0 });
 
   const activeVehicle = vehicles.find(v => v.id === selectedVehicleId);
+  const globalSummary = getGlobalSummary(vehicles, transactions);
+
+  const [isListModalOpen, setIsListModalOpen] = useState(false);
+  const [modalListType, setModalListType] = useState<'income' | 'expense'>('income');
+  const [showReportSheet, setShowReportSheet] = useState(false);
+
+  useEffect(() => {
+    setShowReportSheet(false);
+  }, [selectedVehicleId, selectedMonth]);
+
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return '-';
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    return dateStr;
+  };
+
+
+
+  // Get data for charts (group by month for the last 6 months)
+  const getChartData = () => {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthlyData: { [key: string]: { month: string; income: number; expense: number; pending: number } } = {};
+
+    // Initialize last 6 months
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      monthlyData[key] = {
+        month: `${months[d.getMonth()]} ${d.getFullYear().toString().substring(2)}`,
+        income: 0,
+        expense: 0,
+        pending: 0
+      };
+    }
+
+    transactions.forEach(t => {
+      const tDate = new Date(t.date);
+      const key = `${tDate.getFullYear()}-${String(tDate.getMonth() + 1).padStart(2, '0')}`;
+      if (monthlyData[key]) {
+        if (t.paymentMode === 'Pending') {
+          monthlyData[key].pending += t.amount;
+        } else if (t.type === 'income') {
+          monthlyData[key].income += t.amount;
+        } else {
+          monthlyData[key].expense += t.amount;
+        }
+      }
+    });
+
+    return Object.values(monthlyData);
+  };
+
+  const chartData = getChartData();
 
   // Load transactions for selected vehicle
   useEffect(() => {
@@ -116,21 +184,15 @@ export const Reports: React.FC<ReportsProps> = ({ vehicles, transactions }) => {
     doc.setTextColor(30, 41, 59);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(12);
-    doc.text('VEHICLE & FLEET INFORMATION', 14, 52);
+    doc.text('VEHICLE & OPERATOR INFORMATION', 14, 52);
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
     doc.text([
       `Vehicle Number:  ${activeVehicle.vehicleNumber}`,
-      `Vehicle Type:    ${activeVehicle.type}`,
-      `Owner Name:      ${activeVehicle.ownerName}`
-    ], 14, 60);
-
-    doc.text([
-      `Driver Name:     ${activeVehicle.driverName}`,
-      `Driver Mobile:   ${activeVehicle.driverPhone}`,
+      `Owner Name:      ${activeVehicle.ownerName}`,
       `Statement Month: ${monthName}`
-    ], 120, 60);
+    ], 14, 60);
 
     // Custom calculations for PDF matching the Ledger split
     let grossIncome = 0;
@@ -204,28 +266,36 @@ export const Reports: React.FC<ReportsProps> = ({ vehicles, transactions }) => {
     doc.setFontSize(10.5);
     doc.text(formatPDFCurrency(netCashBalance), 155, 98);
 
-    // Transaction list table
-    doc.setTextColor(30, 41, 59);
+    // Transaction list tables grouped by Income & Expenses
+    // 1. Income Transactions Table
+    doc.setTextColor(20, 110, 80);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
-    doc.text('TRANSACTION LEDGER DETAILS', 14, 118);
+    doc.setFontSize(11);
+    doc.text('💰 INCOME TRANSACTIONS', 14, 118);
 
-    const tableRows = filteredTxs.map((t, idx) => [
+    const incomeTxs = filteredTxs.filter(t => t.type === 'income');
+    const incomeRows = incomeTxs.map((t, idx) => [
       idx + 1,
-      t.date,
+      formatDate(t.date),
       t.category,
       t.wasPending ? `${t.paymentMode} (Clrd)` : t.paymentMode,
       t.description || '-',
-      t.type === 'income' ? formatPDFCurrency(t.amount) : '',
-      t.type === 'expense' ? formatPDFCurrency(t.amount) : ''
+      formatPDFCurrency(t.amount)
+    ]);
+    
+    // Add Subtotal row
+    incomeRows.push([
+      '', '', '', '', 
+      'Total Income:', 
+      formatPDFCurrency(grossIncome)
     ]);
 
     autoTable(doc, {
       startY: 122,
-      head: [['Sr.', 'Date', 'Category', 'Mode', 'Description', 'Income (+)', 'Expense (-)']],
-      body: tableRows,
+      head: [['Sr.', 'Date', 'Category', 'Mode', 'Description', 'Amount']],
+      body: incomeRows,
       headStyles: {
-        fillColor: [15, 17, 26],
+        fillColor: [20, 110, 80],
         textColor: [255, 255, 255],
         fontStyle: 'bold',
         fontSize: 9
@@ -234,23 +304,109 @@ export const Reports: React.FC<ReportsProps> = ({ vehicles, transactions }) => {
         0: { cellWidth: 8 },
         1: { cellWidth: 22 },
         2: { cellWidth: 35 },
-        3: { cellWidth: 18 },
-        4: { cellWidth: 62 },
-        5: { halign: 'right', textColor: [20, 110, 80] },
-        6: { halign: 'right', textColor: [180, 40, 40] }
+        3: { cellWidth: 20 },
+        4: { cellWidth: 70 },
+        5: { halign: 'right', fontStyle: 'bold' }
       },
       styles: {
         fontSize: 8.5,
         cellPadding: 3
       },
-      alternateRowStyles: {
-        fillColor: [248, 250, 252]
+      didParseCell: function(data) {
+        // Style subtotal row
+        if (data.row.index === incomeRows.length - 1) {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fillColor = [240, 253, 250];
+        }
       }
     });
 
+    let currentY = (doc as any).lastAutoTable.finalY + 12;
+
+    // 2. Expense Transactions Table
+    doc.setTextColor(180, 40, 40);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('💸 EXPENSE TRANSACTIONS', 14, currentY);
+
+    const expenseTxs = filteredTxs.filter(t => t.type === 'expense');
+    const expenseRows = expenseTxs.map((t, idx) => [
+      idx + 1,
+      formatDate(t.date),
+      t.category,
+      t.wasPending ? `${t.paymentMode} (Clrd)` : t.paymentMode,
+      t.description || '-',
+      formatPDFCurrency(t.amount)
+    ]);
+    
+    // Add Subtotal row
+    expenseRows.push([
+      '', '', '', '', 
+      'Total Expenses:', 
+      formatPDFCurrency(totalExpense)
+    ]);
+
+    autoTable(doc, {
+      startY: currentY + 4,
+      head: [['Sr.', 'Date', 'Category', 'Mode', 'Description', 'Amount']],
+      body: expenseRows,
+      headStyles: {
+        fillColor: [180, 40, 40],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 9
+      },
+      columnStyles: {
+        0: { cellWidth: 8 },
+        1: { cellWidth: 22 },
+        2: { cellWidth: 35 },
+        3: { cellWidth: 20 },
+        4: { cellWidth: 70 },
+        5: { halign: 'right', fontStyle: 'bold' }
+      },
+      styles: {
+        fontSize: 8.5,
+        cellPadding: 3
+      },
+      didParseCell: function(data) {
+        // Style subtotal row
+        if (data.row.index === expenseRows.length - 1) {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fillColor = [254, 242, 242];
+        }
+      }
+    });
+
+    let finalCalculationsY = (doc as any).lastAutoTable.finalY + 12;
+    
+    // Add final Calculation Summary Block in PDF
+    doc.setDrawColor(200, 200, 200);
+    doc.line(120, finalCalculationsY, 196, finalCalculationsY);
+    
+    doc.setTextColor(30, 41, 59);
+    doc.setFontSize(8.5);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Total Gross Income:', 120, finalCalculationsY + 6);
+    doc.text(formatPDFCurrency(grossIncome), 196, finalCalculationsY + 6, { align: 'right' });
+    
+    doc.text('Less: Total Expenses:', 120, finalCalculationsY + 12);
+    doc.text('- ' + formatPDFCurrency(totalExpense), 196, finalCalculationsY + 12, { align: 'right' });
+    
+    doc.line(120, finalCalculationsY + 16, 196, finalCalculationsY + 16);
+    
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('Net Margin Balance:', 120, finalCalculationsY + 22);
+    if (netCashBalance >= 0) {
+      doc.setTextColor(20, 110, 80);
+    } else {
+      doc.setTextColor(180, 40, 40);
+    }
+    doc.text(formatPDFCurrency(netCashBalance), 196, finalCalculationsY + 22, { align: 'right' });
+
     // Signature Area at the bottom
-    const finalY = (doc as any).lastAutoTable.finalY + 25;
-    if (finalY < 260) {
+    const finalY = finalCalculationsY + 40;
+    if (finalY < 265) {
       doc.setDrawColor(200, 200, 200);
       doc.line(14, finalY, 70, finalY);
       doc.line(140, finalY, 196, finalY);
@@ -290,7 +446,7 @@ export const Reports: React.FC<ReportsProps> = ({ vehicles, transactions }) => {
       const catEscaped = `"${t.category.replace(/"/g, '""')}"`;
       const incomeVal = t.type === 'income' ? t.amount : '';
       const expenseVal = t.type === 'expense' ? t.amount : '';
-      csvRows.push(`${idx + 1},${t.date},${catEscaped},${t.paymentMode},${descEscaped},${incomeVal},${expenseVal}`);
+      csvRows.push(`${idx + 1},${formatDate(t.date)},${catEscaped},${t.paymentMode},${descEscaped},${incomeVal},${expenseVal}`);
     });
     
     const csvString = csvRows.join("\n");
@@ -306,12 +462,118 @@ export const Reports: React.FC<ReportsProps> = ({ vehicles, transactions }) => {
     URL.revokeObjectURL(url);
   };
 
+
+
+  const getModalTransactions = () => {
+    if (!selectedMonth) return [];
+    const [year, month] = selectedMonth.split('-');
+    const monthlyTxs = transactions.filter(t => {
+      const tDate = new Date(t.date);
+      return (
+        tDate.getFullYear() === parseInt(year) &&
+        (tDate.getMonth() + 1) === parseInt(month)
+      );
+    });
+    return monthlyTxs
+      .filter(t => t.type === modalListType)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <div className="page-header">
         <div className="page-title-group">
-          <h1>Monthly Statement Reports</h1>
-          <p className="page-subtitle">Download professional accounting PDF ledgers for drivers, owners, and tax audits.</p>
+          <h1>P&L (Profit and Loss)</h1>
+          <p className="page-subtitle">View and download Profit & Loss financial statements for your vehicles.</p>
+        </div>
+      </div>
+
+      {/* Global Stat Cards */}
+      <div className="stats-grid">
+        <div 
+          className="card stat-card success"
+          style={{ 
+            cursor: 'pointer',
+            transition: 'all 0.2s ease'
+          }}
+          onClick={() => { setModalListType('income'); setIsListModalOpen(true); }}
+          title="Click to view all income entries"
+        >
+          <div className="stat-icon-wrapper">
+            <TrendingUp size={24} />
+          </div>
+          <div className="stat-details">
+            <span className="stat-label">Total Earnings</span>
+            <span className="stat-value">{formatCurrency(globalSummary.totalIncome)}</span>
+          </div>
+        </div>
+
+        <div 
+          className="card stat-card danger"
+          style={{ 
+            cursor: 'pointer',
+            transition: 'all 0.2s ease'
+          }}
+          onClick={() => { setModalListType('expense'); setIsListModalOpen(true); }}
+          title="Click to view all expense entries"
+        >
+          <div className="stat-icon-wrapper">
+            <TrendingDown size={24} />
+          </div>
+          <div className="stat-details">
+            <span className="stat-label">Total Expenses</span>
+            <span className="stat-value">{formatCurrency(globalSummary.totalExpense)}</span>
+          </div>
+        </div>
+
+        <div className={`card stat-card ${globalSummary.balance >= 0 ? 'success' : 'danger'}`}>
+          <div className="stat-icon-wrapper" style={{ backgroundColor: globalSummary.balance >= 0 ? 'var(--color-success-bg)' : 'var(--color-danger-bg)', color: globalSummary.balance >= 0 ? 'var(--color-success)' : 'var(--color-danger)' }}>
+            <DollarSign size={24} />
+          </div>
+          <div className="stat-details">
+            <span className="stat-label">Net Balance</span>
+            <span className="stat-value">{formatCurrency(globalSummary.balance)}</span>
+          </div>
+        </div>
+
+        <div className="card stat-card primary">
+          <div className="stat-icon-wrapper">
+            <Truck size={24} />
+          </div>
+          <div className="stat-details">
+            <span className="stat-label">Active Vehicles</span>
+            <span className="stat-value">{globalSummary.vehicleCount}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Recharts chart */}
+      <div className="card" style={{ display: 'flex', flexDirection: 'column', minHeight: '380px' }}>
+        <h3 className="card-title">Income vs Expenses Trend</h3>
+        <div style={{ flexGrow: 1, width: '100%', height: '300px', marginTop: '16px' }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={chartData}
+              margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+              <XAxis dataKey="month" stroke="var(--text-secondary)" fontSize={12} />
+              <YAxis stroke="var(--text-secondary)" fontSize={12} />
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: '#171a26', 
+                  borderColor: 'var(--border-color)',
+                  color: 'var(--text-primary)',
+                  borderRadius: '8px'
+                }}
+                formatter={(value: any) => [formatCurrency(Number(value)), '']}
+              />
+              <Legend verticalAlign="top" height={36} iconType="circle" />
+              <Bar name="Earnings" dataKey="income" fill="var(--accent-primary)" radius={[4, 4, 0, 0]} />
+              <Bar name="Expenses" dataKey="expense" fill="var(--color-danger)" radius={[4, 4, 0, 0]} />
+              <Bar name="Pending" dataKey="pending" fill="var(--color-warning)" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       </div>
 
@@ -359,10 +621,57 @@ export const Reports: React.FC<ReportsProps> = ({ vehicles, transactions }) => {
 
       {/* Main Report Display Workspace */}
       {!selectedVehicleId ? (
-        <div className="empty-state">
-          <Truck className="empty-state-icon" size={60} />
-          <div className="empty-state-title">Select a Vehicle to Compile Statement</div>
-          <p className="empty-state-desc">Choose a vehicle and matching billing cycle month to preview and download statements.</p>
+        <div className="card">
+          <h3 className="card-title" style={{ marginBottom: '16px' }}>Fleet Overview & Financial Summary</h3>
+          <div className="table-container">
+            <table className="custom-table">
+              <thead>
+                <tr>
+                  <th style={{ width: '150px', textAlign: 'center' }}>Vehicle No</th>
+                  <th>Owner Name</th>
+                  <th style={{ textAlign: 'center', width: '120px' }}>Status</th>
+                  <th style={{ textAlign: 'right', width: '150px' }}>Total Earnings</th>
+                  <th style={{ textAlign: 'right', width: '150px' }}>Total Expenses</th>
+                  <th style={{ textAlign: 'right', width: '150px' }}>Net Balance</th>
+                  <th style={{ textAlign: 'center', width: '130px' }}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {vehicles.map(v => {
+                  const sum = getVehicleSummary(v.id, vehicles, transactions);
+                  return (
+                    <tr key={v.id}>
+                      <td style={{ textAlign: 'center', fontWeight: 'bold', whiteSpace: 'nowrap' }}>{v.vehicleNumber}</td>
+                      <td>{v.ownerName}</td>
+                      <td style={{ textAlign: 'center' }}>
+                        <span className={`badge ${v.status === 'Active' ? 'success' : 'warning'}`}>
+                          {v.status}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'right', color: 'var(--color-success)', fontWeight: 600 }}>
+                        {formatCurrency(sum.totalIncome)}
+                      </td>
+                      <td style={{ textAlign: 'right', color: 'var(--color-danger)', fontWeight: 600 }}>
+                        {formatCurrency(sum.totalExpense)}
+                      </td>
+                      <td style={{ textAlign: 'right', fontWeight: 700 }} className={sum.balance >= 0 ? 'amount-income' : 'amount-expense'}>
+                        {formatCurrency(sum.balance)}
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <button 
+                          className="btn btn-primary btn-sm" 
+                          style={{ padding: '6px 12px', fontSize: '0.8rem', fontWeight: 'bold' }}
+                          onClick={() => setSelectedVehicleId(v.id)}
+                        >
+                          View Statement
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       ) : filteredTxs.length === 0 ? (
         <div className="card">
@@ -372,9 +681,231 @@ export const Reports: React.FC<ReportsProps> = ({ vehicles, transactions }) => {
             <p className="empty-state-desc">We couldn't find any financial entries registered for {activeVehicle?.vehicleNumber || ''} during this month. Try recording transactions in the Ledger tab first.</p>
           </div>
         </div>
+      ) : !showReportSheet ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* Action Bar */}
+          <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+            <button 
+              className="btn btn-secondary" 
+              onClick={() => setSelectedVehicleId('')}
+            >
+              ⬅ Back to Fleet Summary
+            </button>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button 
+                className="btn btn-secondary"
+                onClick={handleDownloadCSV}
+              >
+                Download CSV
+              </button>
+              <button 
+                className="btn btn-primary"
+                style={{ backgroundColor: 'var(--color-success)', color: '#000', fontWeight: 'bold' }}
+                onClick={() => setShowReportSheet(true)}
+              >
+                📄 Show Report PDF
+              </button>
+            </div>
+          </div>
+
+          {/* Operator Banner */}
+          <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+            <div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Selected Vehicle</div>
+              <h2 style={{ margin: '4px 0 0 0' }}>{activeVehicle?.vehicleNumber}</h2>
+            </div>
+            <div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Operator Name</div>
+              <div style={{ fontWeight: 600 }}>{activeVehicle?.ownerName}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Driver Details</div>
+              <div style={{ fontWeight: 600 }}>{activeVehicle?.driverName} ({activeVehicle?.driverPhone})</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Statement Month</div>
+              <div style={{ fontWeight: 600 }}>{getMonthName(selectedMonth)}</div>
+            </div>
+          </div>
+
+          {/* Internal summary cards (Clickable to open popups!) */}
+          <div className="report-sheet-summary-grid">
+            <div 
+              className="report-sheet-summary-box"
+              style={{ 
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border-color)',
+                padding: '16px',
+                borderRadius: '8px'
+              }}
+              onClick={() => { setModalListType('income'); setIsListModalOpen(true); }}
+              title="Click to view all income entries"
+            >
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase' }}>Gross Income</span>
+              <div className="report-sheet-summary-value" style={{ color: 'var(--color-success)', fontSize: '1.5rem', fontWeight: 'bold', marginTop: '4px' }}>{formatCurrency(summary.income)}</div>
+            </div>
+            <div 
+              className="report-sheet-summary-box"
+              style={{ 
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border-color)',
+                padding: '16px',
+                borderRadius: '8px'
+              }}
+              onClick={() => { setModalListType('expense'); setIsListModalOpen(true); }}
+              title="Click to view all expense entries"
+            >
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase' }}>Total Expenses</span>
+              <div className="report-sheet-summary-value" style={{ color: 'var(--color-danger)', fontSize: '1.5rem', fontWeight: 'bold', marginTop: '4px' }}>{formatCurrency(summary.expense)}</div>
+            </div>
+            <div className="report-sheet-summary-box" style={{ background: summary.balance >= 0 ? 'rgba(52,211,153,0.05)' : 'rgba(239,68,68,0.05)', border: `1px solid ${summary.balance >= 0 ? 'var(--color-success)' : 'var(--color-danger)'}`, padding: '16px', borderRadius: '8px' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase' }}>Net Margin Balance</span>
+              <div className="report-sheet-summary-value" style={{ color: summary.balance >= 0 ? 'var(--color-success)' : 'var(--color-danger)', fontSize: '1.5rem', fontWeight: 'bold', marginTop: '4px' }}>{formatCurrency(summary.balance)}</div>
+            </div>
+          </div>
+
+          {/* Stacked Tables: Income first, then Expenses */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {/* Income Entries Table */}
+            <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <h3 className="card-title" style={{ color: 'var(--color-success)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>💰 Income Entries</span>
+                <span style={{ fontSize: '1.1rem', fontWeight: 'bold' }}>
+                  Total Income: {formatCurrency(summary.income)}
+                </span>
+              </h3>
+              <div className="table-container">
+                <table className="custom-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: '50px' }}>Sr.</th>
+                      <th style={{ width: '100px', textAlign: 'center' }}>Date</th>
+                      <th style={{ width: '120px', textAlign: 'center' }}>Material</th>
+                      <th style={{ width: '120px' }}>From</th>
+                      <th style={{ width: '120px' }}>To</th>
+                      <th style={{ width: '90px', textAlign: 'center' }}>Wt (Ton)</th>
+                      <th style={{ width: '100px', textAlign: 'center' }}>Rate (₹)</th>
+                      <th style={{ width: '100px', textAlign: 'center' }}>Mode</th>
+                      <th>Description / Ref No.</th>
+                      <th style={{ textAlign: 'right', width: '140px' }}>Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredTxs.filter(t => t.type === 'income').length === 0 ? (
+                      <tr>
+                        <td colSpan={10} style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>No income entries recorded.</td>
+                      </tr>
+                    ) : (
+                      filteredTxs.filter(t => t.type === 'income').map((t, idx) => (
+                        <tr key={t.id || idx}>
+                          <td>{idx + 1}</td>
+                          <td style={{ textAlign: 'center' }}>{formatDate(t.date)}</td>
+                          <td style={{ textAlign: 'center', fontWeight: '500' }}>{t.material || '-'}</td>
+                          <td>{t.from || '-'}</td>
+                          <td>{t.to || '-'}</td>
+                          <td style={{ textAlign: 'center' }}>{t.weight || '-'}</td>
+                          <td style={{ textAlign: 'center' }}>{t.rate ? formatCurrency(t.rate) : '-'}</td>
+                          <td style={{ textAlign: 'center' }}>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              <span>{t.paymentMode}</span>
+                              {t.wasPending && (
+                                <span style={{ color: '#15803d', fontWeight: 'bold' }} title="Originally Pending, now Cleared">✓</span>
+                              )}
+                            </div>
+                          </td>
+                          <td style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{t.description || '-'}</td>
+                          <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--color-success)' }}>
+                            {formatCurrency(t.amount)}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Expense Entries Table */}
+            <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <h3 className="card-title" style={{ color: 'var(--color-danger)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>💸 Expense Entries</span>
+                <span style={{ fontSize: '1.1rem', fontWeight: 'bold' }}>
+                  Total Expenses: {formatCurrency(summary.expense)}
+                </span>
+              </h3>
+              <div className="table-container">
+                <table className="custom-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: '50px' }}>Sr.</th>
+                      <th style={{ width: '100px', textAlign: 'center' }}>Date</th>
+                      <th style={{ width: '150px' }}>Category</th>
+                      <th style={{ width: '150px' }}>Party Name</th>
+                      <th style={{ width: '100px', textAlign: 'center' }}>Mode</th>
+                      <th>Description</th>
+                      <th style={{ textAlign: 'right', width: '140px' }}>Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredTxs.filter(t => t.type === 'expense').length === 0 ? (
+                      <tr>
+                        <td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>No expense entries recorded.</td>
+                      </tr>
+                    ) : (
+                      filteredTxs.filter(t => t.type === 'expense').map((t, idx) => (
+                        <tr key={t.id || idx}>
+                          <td>{idx + 1}</td>
+                          <td style={{ textAlign: 'center' }}>{formatDate(t.date)}</td>
+                          <td>
+                            <span className="badge danger" style={{ fontSize: '0.7rem' }}>
+                              {t.category}
+                            </span>
+                          </td>
+                          <td>{t.partyName || '-'}</td>
+                          <td style={{ textAlign: 'center' }}>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              <span>{t.paymentMode}</span>
+                              {t.wasPending && (
+                                <span style={{ color: '#15803d', fontWeight: 'bold' }} title="Originally Pending, now Cleared">✓</span>
+                              )}
+                            </div>
+                          </td>
+                          <td style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{t.description || '-'}</td>
+                          <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--color-danger)' }}>
+                            {formatCurrency(t.amount)}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
       ) : (
         <div className="report-preview-container">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)' }}>
+          <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <button 
+              className="btn btn-secondary" 
+              onClick={() => setShowReportSheet(false)}
+            >
+              ⬅ Back to Entries view
+            </button>
+            <button 
+              className="btn btn-primary"
+              style={{ backgroundColor: 'var(--color-success)', color: '#000', fontWeight: 'bold' }}
+              onClick={handleDownloadPDF}
+            >
+              📥 Download Report PDF
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
             <Eye size={18} />
             <span>Document Preview (Lightweight print simulation):</span>
           </div>
@@ -393,27 +924,37 @@ export const Reports: React.FC<ReportsProps> = ({ vehicles, transactions }) => {
             </div>
 
             {/* Vehicle Profile Section */}
-            <div className="report-profile-grid">
+            <div className="report-profile-grid" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', marginBottom: '20px' }}>
               <div>
                 <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', marginBottom: '6px' }}>Vehicle & Operator</div>
                 <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#1e293b' }}>{activeVehicle?.vehicleNumber || ''}</div>
-                <div style={{ color: '#475569', fontSize: '0.85rem', marginTop: '4px' }}>Type: {activeVehicle?.type || ''}</div>
-                <div style={{ color: '#475569', fontSize: '0.85rem' }}>Owner: {activeVehicle?.ownerName || ''}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', marginBottom: '6px' }}>Driver Details</div>
-                <div style={{ fontSize: '1.1rem', fontWeight: 600, color: '#1e293b' }}>{activeVehicle?.driverName || ''}</div>
-                <div style={{ color: '#475569', fontSize: '0.85rem', marginTop: '4px' }}>Mobile: {activeVehicle?.driverPhone || ''}</div>
+                <div style={{ color: '#475569', fontSize: '0.85rem', marginTop: '4px' }}>Owner: {activeVehicle?.ownerName || ''}</div>
               </div>
             </div>
 
             {/* Internal summary cards */}
             <div className="report-sheet-summary-grid">
-              <div className="report-sheet-summary-box">
+              <div 
+                className="report-sheet-summary-box"
+                style={{ 
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+                onClick={() => { setModalListType('income'); setIsListModalOpen(true); }}
+                title="Click to view all income entries"
+              >
                 <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>Gross Income</span>
                 <div className="report-sheet-summary-value text-dark-success">{formatCurrency(summary.income)}</div>
               </div>
-              <div className="report-sheet-summary-box">
+              <div 
+                className="report-sheet-summary-box"
+                style={{ 
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+                onClick={() => { setModalListType('expense'); setIsListModalOpen(true); }}
+                title="Click to view all expense entries"
+              >
                 <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>Total Expenses</span>
                 <div className="report-sheet-summary-value text-dark-danger">{formatCurrency(summary.expense)}</div>
               </div>
@@ -423,57 +964,135 @@ export const Reports: React.FC<ReportsProps> = ({ vehicles, transactions }) => {
               </div>
             </div>
 
-            {/* Table */}
-            <table className="custom-table" style={{ background: 'transparent' }}>
-              <thead>
-                <tr>
-                  <th style={{ width: '50px' }}>Sr.</th>
-                  <th style={{ width: '100px' }}>Date</th>
-                  <th style={{ width: '150px' }}>Category</th>
-                  <th style={{ width: '80px' }}>Mode</th>
-                  <th>Description</th>
-                  <th style={{ textAlign: 'right', width: '120px' }}>Income (+)</th>
-                  <th style={{ textAlign: 'right', width: '120px' }}>Expense (-)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredTxs.map((t, idx) => (
-                  <tr key={t.id}>
-                    <td>{idx + 1}</td>
-                    <td>{t.date}</td>
-                    <td>
-                      <span className={`badge ${t.type === 'income' ? 'success' : 'danger'}`} style={{ fontSize: '0.7rem' }}>
-                        {t.category}
-                      </span>
-                    </td>
-                    <td>
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                        <span>{t.paymentMode}</span>
-                        {t.wasPending && (
-                          <span 
-                            style={{ 
-                              color: '#15803d', 
-                              fontWeight: 'bold',
-                              fontSize: '0.85rem'
-                            }} 
-                            title="Originally Pending, now Cleared"
-                          >
-                            ✓
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td style={{ fontSize: '0.85rem', color: '#475569' }}>{t.description || '-'}</td>
-                    <td style={{ textAlign: 'right' }} className="text-dark-success">
-                      {t.type === 'income' ? formatCurrency(t.amount) : ''}
-                    </td>
-                    <td style={{ textAlign: 'right' }} className="text-dark-danger">
-                      {t.type === 'expense' ? formatCurrency(t.amount) : ''}
-                    </td>
+            {/* Income Transactions Details */}
+            <div style={{ marginTop: '16px' }}>
+              <div style={{ fontWeight: 'bold', fontSize: '0.85rem', color: '#1e293b', borderBottom: '1.5px solid #cbd5e1', paddingBottom: '4px', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                💰 Income Transactions Details
+              </div>
+              <table className="custom-table" style={{ background: 'transparent' }}>
+                <thead>
+                  <tr>
+                    <th style={{ width: '50px' }}>Sr.</th>
+                    <th style={{ width: '100px' }}>Date</th>
+                    <th style={{ width: '150px' }}>Category</th>
+                    <th style={{ width: '80px' }}>Mode</th>
+                    <th>Description</th>
+                    <th style={{ textAlign: 'right', width: '130px' }}>Amount</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {filteredTxs.filter(t => t.type === 'income').length === 0 ? (
+                    <tr>
+                      <td colSpan={6} style={{ textAlign: 'center', color: '#64748b', padding: '12px' }}>No income transactions found for this period.</td>
+                    </tr>
+                  ) : (
+                    <>
+                      {filteredTxs.filter(t => t.type === 'income').map((t, idx) => (
+                        <tr key={t.id || idx}>
+                          <td>{idx + 1}</td>
+                          <td>{formatDate(t.date)}</td>
+                          <td>
+                            <span className="badge success" style={{ fontSize: '0.7rem' }}>{t.category}</span>
+                          </td>
+                          <td>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              <span>{t.paymentMode}</span>
+                              {t.wasPending && <span style={{ color: '#15803d', fontWeight: 'bold' }}>✓</span>}
+                            </div>
+                          </td>
+                          <td style={{ fontSize: '0.85rem', color: '#475569' }}>{t.description || '-'}</td>
+                          <td style={{ textAlign: 'right', fontWeight: 600 }} className="text-dark-success">
+                            {formatCurrency(t.amount)}
+                          </td>
+                        </tr>
+                      ))}
+                      <tr style={{ backgroundColor: '#f8fafc' }}>
+                        <td colSpan={5} style={{ textAlign: 'right', fontWeight: 'bold', color: '#1e293b' }}>Total Income:</td>
+                        <td style={{ textAlign: 'right', fontWeight: 'bold' }} className="text-dark-success">
+                          {formatCurrency(summary.income)}
+                        </td>
+                      </tr>
+                    </>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Expense Transactions Details */}
+            <div style={{ marginTop: '24px' }}>
+              <div style={{ fontWeight: 'bold', fontSize: '0.85rem', color: '#1e293b', borderBottom: '1.5px solid #cbd5e1', paddingBottom: '4px', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                💸 Expense Transactions Details
+              </div>
+              <table className="custom-table" style={{ background: 'transparent' }}>
+                <thead>
+                  <tr>
+                    <th style={{ width: '50px' }}>Sr.</th>
+                    <th style={{ width: '100px' }}>Date</th>
+                    <th style={{ width: '150px' }}>Category</th>
+                    <th style={{ width: '150px' }}>Party Name</th>
+                    <th style={{ width: '80px' }}>Mode</th>
+                    <th>Description</th>
+                    <th style={{ textAlign: 'right', width: '130px' }}>Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredTxs.filter(t => t.type === 'expense').length === 0 ? (
+                    <tr>
+                      <td colSpan={7} style={{ textAlign: 'center', color: '#64748b', padding: '12px' }}>No expense transactions found for this period.</td>
+                    </tr>
+                  ) : (
+                    <>
+                      {filteredTxs.filter(t => t.type === 'expense').map((t, idx) => (
+                        <tr key={t.id || idx}>
+                          <td>{idx + 1}</td>
+                          <td>{formatDate(t.date)}</td>
+                          <td>
+                            <span className="badge danger" style={{ fontSize: '0.7rem' }}>{t.category}</span>
+                          </td>
+                          <td>{t.partyName || '-'}</td>
+                          <td>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              <span>{t.paymentMode}</span>
+                              {t.wasPending && <span style={{ color: '#15803d', fontWeight: 'bold' }}>✓</span>}
+                            </div>
+                          </td>
+                          <td style={{ fontSize: '0.85rem', color: '#475569' }}>{t.description || '-'}</td>
+                          <td style={{ textAlign: 'right', fontWeight: 600 }} className="text-dark-danger">
+                            {formatCurrency(t.amount)}
+                          </td>
+                        </tr>
+                      ))}
+                      <tr style={{ backgroundColor: '#f8fafc' }}>
+                        <td colSpan={6} style={{ textAlign: 'right', fontWeight: 'bold', color: '#1e293b' }}>Total Expenses:</td>
+                        <td style={{ textAlign: 'right', fontWeight: 'bold' }} className="text-dark-danger">
+                          {formatCurrency(summary.expense)}
+                        </td>
+                      </tr>
+                    </>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Income-Expenses calculations and Net Balance */}
+            <div style={{ marginTop: '24px', borderTop: '2.5px solid #94a3b8', paddingTop: '12px', display: 'flex', justifyContent: 'flex-end' }}>
+              <div style={{ width: '320px', display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.9rem', color: '#1e293b' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Total Gross Income:</span>
+                  <span style={{ fontWeight: 'bold' }} className="text-dark-success">{formatCurrency(summary.income)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Less: Total Expenses:</span>
+                  <span style={{ fontWeight: 'bold' }} className="text-dark-danger">- {formatCurrency(summary.expense)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1.5px solid #cbd5e1', paddingTop: '6px', fontSize: '1rem', fontWeight: 'bold' }}>
+                  <span>Net Margin Balance:</span>
+                  <span className={summary.balance >= 0 ? 'text-dark-success' : 'text-dark-danger'}>
+                    {formatCurrency(summary.balance)}
+                  </span>
+                </div>
+              </div>
+            </div>
 
             {/* Signature Area */}
             <div className="report-signature-container">
@@ -487,6 +1106,97 @@ export const Reports: React.FC<ReportsProps> = ({ vehicles, transactions }) => {
                   Authorized Accountant Signature
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Transaction List Popup Modal */}
+      {isListModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '850px' }}>
+            <div className="modal-header">
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {modalListType === 'income' ? '💰' : '💸'} {modalListType === 'income' ? 'Income' : 'Expense'} Transactions Log 
+                <span style={{ fontSize: '0.9rem', fontWeight: 'normal', color: 'var(--text-secondary)' }}>
+                  ({getMonthName(selectedMonth)} - Fleet-wide)
+                </span>
+              </h3>
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                style={{ padding: '6px' }} 
+                onClick={() => setIsListModalOpen(false)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            
+            <div className="modal-body" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+              {getModalTransactions().length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
+                  No {modalListType} entries found for this period.
+                </div>
+              ) : (
+                <div className="table-container">
+                  <table className="custom-table">
+                    <thead>
+                      <tr>
+                        <th style={{ width: '110px', textAlign: 'center' }}>Date</th>
+                        <th style={{ width: '130px', textAlign: 'center' }}>Vehicle No</th>
+                        <th style={{ width: '160px' }}>Category</th>
+                        <th style={{ width: '150px' }}>Party Name</th>
+                        <th>Description</th>
+                        <th style={{ width: '110px', textAlign: 'center' }}>Mode</th>
+                        <th style={{ textAlign: 'right', width: '130px' }}>Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {getModalTransactions().map((t, idx) => {
+                        const vehicle = vehicles.find(v => v.id === t.vehicleId);
+                        return (
+                          <tr key={t.id || idx}>
+                            <td style={{ textAlign: 'center' }}>{formatDate(t.date)}</td>
+                            <td style={{ textAlign: 'center', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+                              {vehicle ? vehicle.vehicleNumber : '-'}
+                            </td>
+                            <td>{t.category}</td>
+                            <td>{t.partyName || '-'}</td>
+                            <td style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{t.description || '-'}</td>
+                            <td style={{ textAlign: 'center' }}>
+                              <span className="badge info" style={{ fontSize: '0.75rem' }}>{t.paymentMode}</span>
+                            </td>
+                            <td 
+                              style={{ 
+                                textAlign: 'right', 
+                                fontWeight: 700, 
+                                color: t.type === 'income' ? 'var(--color-success)' : 'var(--color-danger)' 
+                              }}
+                            >
+                              {formatCurrency(t.amount)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+            
+            <div className="modal-footer">
+              <div style={{ marginRight: 'auto', fontWeight: 'bold', fontSize: '1.05rem' }}>
+                Total: <span style={{ color: modalListType === 'income' ? 'var(--color-success)' : 'var(--color-danger)' }}>
+                  {formatCurrency(getModalTransactions().reduce((sum, t) => sum + t.amount, 0))}
+                </span>
+              </div>
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                onClick={() => setIsListModalOpen(false)}
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

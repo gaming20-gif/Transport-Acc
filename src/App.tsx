@@ -2,12 +2,8 @@ import { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, 
   Truck, 
-  BookOpen, 
   FileBarChart2, 
-  Settings as SettingsIcon,
-  Menu, 
-  X,
-  Navigation
+  ClipboardList
 } from 'lucide-react';
 import type { Vehicle, Transaction } from './types';
 import { getVehicles, getTransactions, initSampleData, importData } from './utils/storage';
@@ -15,15 +11,20 @@ import { Dashboard } from './components/Dashboard';
 import { Vehicles } from './components/Vehicles';
 import { Ledger } from './components/Ledger';
 import { Reports } from './components/Reports';
-import { Settings } from './components/Settings';
 import { Trips } from './components/Trips';
+import { Pending } from './components/Pending';
 
 function App() {
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => (localStorage.getItem('theme') as 'light' | 'dark') || 'light');
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
 
   // Initialize data on mount
   useEffect(() => {
@@ -72,9 +73,6 @@ function App() {
     setTransactions(t);
   };
 
-  const toggleSidebar = () => {
-    setIsSidebarOpen(!isSidebarOpen);
-  };
 
   const renderActiveComponent = () => {
     switch (activeTab) {
@@ -83,18 +81,14 @@ function App() {
           <Dashboard 
             vehicles={vehicles} 
             transactions={transactions} 
-            setActiveTab={setActiveTab}
-            setSelectedVehicleId={setSelectedVehicleId}
+            refreshData={refreshData}
           />
         );
       case 'vehicles':
         return (
           <Vehicles 
             vehicles={vehicles} 
-            transactions={transactions}
             refreshData={refreshData}
-            setActiveTab={setActiveTab}
-            setSelectedVehicleId={setSelectedVehicleId}
           />
         );
       case 'trips':
@@ -121,138 +115,124 @@ function App() {
             transactions={transactions}
           />
         );
-      case 'settings':
+      case 'pending':
         return (
-          <Settings 
-            refreshData={refreshData} 
+          <Pending 
+            vehicles={vehicles}
+            transactions={transactions}
+            refreshData={refreshData}
           />
         );
+
       default:
         return (
           <Dashboard 
             vehicles={vehicles} 
             transactions={transactions} 
-            setActiveTab={setActiveTab}
-            setSelectedVehicleId={setSelectedVehicleId}
+            refreshData={refreshData}
           />
         );
     }
   };
 
+  const pendingCount = transactions.filter(t => 
+    t.paymentStatus === 'Pending' || t.paymentStatus === 'Partial' || (!t.paymentStatus && t.paymentMode === 'Pending')
+  ).length;
+
   return (
     <div className="app-container">
-      {/* Mobile Top Header (hidden on desktop) */}
-      <div 
-        style={{ 
-          display: 'none', 
-          position: 'fixed', 
-          top: 0, 
-          left: 0, 
-          right: 0, 
-          height: '60px', 
-          backgroundColor: 'var(--bg-sidebar)', 
-          borderBottom: '1px solid var(--border-color)',
-          zIndex: 200,
-          alignItems: 'center',
-          padding: '0 20px',
-          justifyContent: 'space-between'
-        }}
-        className="mobile-header"
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div className="sidebar-logo" style={{ width: '28px', height: '28px', fontSize: '0.8rem' }}>T</div>
-          <span style={{ fontWeight: 700, fontSize: '1rem' }}>TRANS-ACC</span>
-        </div>
-        <button 
-          className="btn btn-secondary" 
-          style={{ padding: '6px' }}
-          onClick={toggleSidebar}
-        >
-          {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
-        </button>
-      </div>
-
-      {/* Sidebar Overlay (dim background when sidebar is open on mobile) */}
-      <div 
-        className={`sidebar-overlay ${isSidebarOpen ? 'active' : ''}`} 
-        onClick={() => setIsSidebarOpen(false)}
-      />
-
-      {/* Navigation Sidebar */}
-      <aside className={`sidebar ${isSidebarOpen ? 'mobile-open' : ''}`}>
-        <div className="sidebar-brand">
-          <div className="sidebar-logo">T</div>
-          <span className="sidebar-title">TransAccount</span>
+      {/* Top Navbar */}
+      <nav className="top-navbar">
+        <div className="top-navbar-brand">
+          <div className="top-navbar-logo">T</div>
+          <span className="top-navbar-title">TransAccount</span>
         </div>
 
-        <ul className="sidebar-menu">
+        <ul className="top-navbar-menu">
           <li>
             <button 
-              className={`sidebar-item ${activeTab === 'dashboard' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('dashboard'); setIsSidebarOpen(false); }}
-              style={{ width: '100%', border: 'none', textAlign: 'left', background: 'transparent' }}
+              className={`top-navbar-item ${activeTab === 'dashboard' ? 'active' : ''}`}
+              onClick={() => setActiveTab('dashboard')}
+              style={{ border: 'none', background: 'transparent' }}
             >
-              <LayoutDashboard className="sidebar-item-icon" />
-              <span className="sidebar-item-text">Dashboard</span>
+              <LayoutDashboard className="top-navbar-item-icon" />
+              <span className="top-navbar-item-text">Dashboard</span>
             </button>
           </li>
           <li>
             <button 
-              className={`sidebar-item ${activeTab === 'vehicles' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('vehicles'); setIsSidebarOpen(false); }}
-              style={{ width: '100%', border: 'none', textAlign: 'left', background: 'transparent' }}
+              className={`top-navbar-item ${activeTab === 'vehicles' ? 'active' : ''}`}
+              onClick={() => setActiveTab('vehicles')}
+              style={{ border: 'none', background: 'transparent' }}
             >
-              <Truck className="sidebar-item-icon" />
-              <span className="sidebar-item-text">Vehicles List</span>
+              <Truck className="top-navbar-item-icon" />
+              <span className="top-navbar-item-text">My Vehicle</span>
             </button>
           </li>
           <li>
             <button 
-              className={`sidebar-item ${activeTab === 'trips' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('trips'); setIsSidebarOpen(false); }}
-              style={{ width: '100%', border: 'none', textAlign: 'left', background: 'transparent' }}
+              className={`top-navbar-item ${activeTab === 'pending' ? 'active' : ''}`}
+              onClick={() => setActiveTab('pending')}
+              style={{ border: 'none', background: 'transparent', position: 'relative' }}
             >
-              <Navigation className="sidebar-item-icon" />
-              <span className="sidebar-item-text">Trip Registers</span>
+              <ClipboardList className="top-navbar-item-icon" />
+              <span className="top-navbar-item-text">Pending Dues</span>
+              {pendingCount > 0 && (
+                <span 
+                  className="badge-count" 
+                  style={{ 
+                    position: 'absolute', 
+                    top: '8px', 
+                    right: '12px', 
+                    backgroundColor: 'var(--color-danger)', 
+                    color: '#fff', 
+                    borderRadius: '10px', 
+                    padding: '2px 6px', 
+                    fontSize: '0.65rem',
+                    fontWeight: 'bold',
+                    boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
+                  }}
+                >
+                  {pendingCount}
+                </span>
+              )}
             </button>
           </li>
           <li>
             <button 
-              className={`sidebar-item ${activeTab === 'ledger' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('ledger'); setIsSidebarOpen(false); }}
-              style={{ width: '100%', border: 'none', textAlign: 'left', background: 'transparent' }}
+              className={`top-navbar-item ${activeTab === 'reports' ? 'active' : ''}`}
+              onClick={() => setActiveTab('reports')}
+              style={{ border: 'none', background: 'transparent' }}
             >
-              <BookOpen className="sidebar-item-icon" />
-              <span className="sidebar-item-text">Ledger Entries</span>
+              <FileBarChart2 className="top-navbar-item-icon" />
+              <span className="top-navbar-item-text">P&L (Profit and Loss)</span>
             </button>
           </li>
-          <li>
-            <button 
-              className={`sidebar-item ${activeTab === 'reports' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('reports'); setIsSidebarOpen(false); }}
-              style={{ width: '100%', border: 'none', textAlign: 'left', background: 'transparent' }}
-            >
-              <FileBarChart2 className="sidebar-item-icon" />
-              <span className="sidebar-item-text">Reports & PDF</span>
-            </button>
-          </li>
-          <li>
-            <button 
-              className={`sidebar-item ${activeTab === 'settings' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('settings'); setIsSidebarOpen(false); }}
-              style={{ width: '100%', border: 'none', textAlign: 'left', background: 'transparent' }}
-            >
-              <SettingsIcon className="sidebar-item-icon" />
-              <span className="sidebar-item-text">Settings</span>
-            </button>
-          </li>
+
         </ul>
 
-        <div className="sidebar-footer">
-          <p>© 2026 TransAccount</p>
-          <p style={{ fontSize: '0.7rem', marginTop: '4px' }}>v1.0.0 (Local)</p>
+        <div className="top-navbar-footer">
+          <button 
+            type="button"
+            onClick={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')}
+            style={{
+              padding: '4px 10px',
+              fontSize: '0.75rem',
+              borderRadius: '20px',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              color: 'var(--text-navbar-primary)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            {theme === 'light' ? '🌙 Dark' : '☀️ Light'}
+          </button>
+          <span>v1.0.0 (Local)</span>
         </div>
-      </aside>
+      </nav>
 
       {/* Main Body Window */}
       <main className="main-content">

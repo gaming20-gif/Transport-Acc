@@ -717,7 +717,7 @@ export const Trips: React.FC<TripsProps> = ({ vehicles, refreshData }) => {
                     <tr key={t.id}>
                       <td style={{ fontWeight: 700 }} className="amount-income">{t.tripNumber}</td>
                       <td>{t.date}</td>
-                      <td style={{ fontWeight: 600 }}>{vehicle ? vehicle.vehicleNumber : 'Deleted Vehicle'}</td>
+                      <td style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{vehicle ? vehicle.vehicleNumber : 'Deleted Vehicle'}</td>
                       <td style={{ fontSize: '0.85rem' }}>
                         <div>{t.fromLocation}</div>
                         <div style={{ color: 'var(--text-secondary)' }}>➜ {t.toLocation}</div>

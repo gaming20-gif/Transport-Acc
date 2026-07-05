@@ -1,290 +1,411 @@
-import React from 'react';
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  DollarSign, 
-  Truck, 
-  ClipboardList
-} from 'lucide-react';
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  Legend, 
-  ResponsiveContainer 
-} from 'recharts';
-import type { Vehicle, Transaction } from '../types';
-import { getGlobalSummary, getVehicleSummary } from '../utils/storage';
+import React, { useState } from 'react';
+import { Save } from 'lucide-react';
+import type { Vehicle, Transaction, TransactionCategory } from '../types';
+import { addTransaction } from '../utils/storage';
+
+const FIXED_CATEGORIES: TransactionCategory[] = [
+  'Fuel (Diesel)', 'Driver Charge / Salary', 'Loading Charge', 
+  'Toll Tax', 'Way Bridge Charge', 'Other Fixed Charge'
+];
+
+const MAINTENANCE_CATEGORIES: TransactionCategory[] = [
+  'Puncture Repair', 'Air Filling', 'General Service', 'Washing',
+  'Oil Change', 'Battery', 'Tyre Repair / Replacement', 'Spare Parts',
+  'Mechanical Repair', 'Other Maintenance'
+];
 
 interface DashboardProps {
   vehicles: Vehicle[];
   transactions: Transaction[];
-  setActiveTab: (tab: string) => void;
-  setSelectedVehicleId: (id: string | null) => void;
+  refreshData: () => void;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ 
   vehicles, 
   transactions, 
-  setActiveTab,
-  setSelectedVehicleId
+  refreshData
 }) => {
-  const summary = getGlobalSummary(vehicles, transactions);
-
-  // Helper to format currency in Indian Rupees format (or plain commas)
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 0
-    }).format(amount);
+    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount);
   };
 
-  // Get data for charts (group by month for the last 6 months)
-  const getChartData = () => {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const monthlyData: { [key: string]: { month: string; income: number; expense: number; pending: number } } = {};
-
-    // Initialize last 6 months
-    const now = new Date();
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      monthlyData[key] = {
-        month: `${months[d.getMonth()]} ${d.getFullYear().toString().substring(2)}`,
-        income: 0,
-        expense: 0,
-        pending: 0
-      };
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return '-';
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
     }
+    return dateStr;
+  };
 
-    transactions.forEach(t => {
-      const tDate = new Date(t.date);
-      const key = `${tDate.getFullYear()}-${String(tDate.getMonth() + 1).padStart(2, '0')}`;
-      if (monthlyData[key]) {
-        if (t.paymentMode === 'Pending') {
-          monthlyData[key].pending += t.amount;
-        } else if (t.type === 'income') {
-          monthlyData[key].income += t.amount;
-        } else {
-          monthlyData[key].expense += t.amount;
-        }
-      }
+  const today = new Date().toISOString().split('T')[0];
+
+  // --- INCOME EXCEL GRID STATE ---
+  const [incDate, setIncDate] = useState(today);
+  const [incVehicleId, setIncVehicleId] = useState('');
+  const [incFrom, setIncFrom] = useState('');
+  const [incTo, setIncTo] = useState('');
+  const [incWeight, setIncWeight] = useState('');
+  const [incRate, setIncRate] = useState('');
+  const [incAmount, setIncAmount] = useState('');
+  const [incPaymentMode, setIncPaymentMode] = useState<'Cash' | 'Bank' | 'UPI' | 'Pending' | 'Check' | 'Online' | ''>('');
+  const [incEvidence, setIncEvidence] = useState('');
+  const [incMaterial, setIncMaterial] = useState('');
+
+  // Auto-calculate amount when weight or rate changes
+  React.useEffect(() => {
+    const w = Number(incWeight);
+    const r = Number(incRate);
+    if (w > 0 && r > 0) {
+      setIncAmount((w * r).toString());
+    }
+  }, [incWeight, incRate]);
+
+  const handleSaveIncomeRow = async () => {
+    const finalAmount = Number(incAmount);
+    if (!incVehicleId || !incPaymentMode || isNaN(finalAmount) || finalAmount <= 0) {
+      alert("Please ensure a vehicle and payment status are selected, and the Total Amount is greater than 0.");
+      return;
+    }
+    
+    const res = await addTransaction({
+      vehicleId: incVehicleId,
+      date: incDate,
+      type: 'income',
+      category: 'Freight Booking', 
+      amount: finalAmount,
+      paymentMode: incPaymentMode as any,
+      description: incEvidence, 
+      from: incFrom,
+      to: incTo,
+      weight: incWeight ? Number(incWeight) : undefined,
+      rate: incRate ? Number(incRate) : undefined,
+      material: incMaterial.trim() || undefined
     });
 
-    return Object.values(monthlyData);
+    if (!res || (res as any).error) {
+       alert("Failed to save transaction. Error: " + ((res as any)?.error || "Unknown"));
+       return;
+    }
+    
+    setIncFrom('');
+    setIncTo('');
+    setIncWeight('');
+    setIncRate('');
+    setIncAmount('');
+    setIncPaymentMode('');
+    setIncEvidence('');
+    setIncMaterial('');
+    refreshData();
   };
 
-  const chartData = getChartData();
-  const recentTransactions = transactions.slice(0, 5);
+  // --- EXPENSE GRID STATE ---
+  const [activeExpenseTab, setActiveExpenseTab] = useState<'fixed' | 'maintenance'>('fixed');
 
-  const viewVehicleLedger = (vehicleId: string) => {
-    setSelectedVehicleId(vehicleId);
-    setActiveTab('ledger');
+  const currentExpenseCategories = activeExpenseTab === 'fixed' ? FIXED_CATEGORIES : MAINTENANCE_CATEGORIES;
+
+  const [expDate, setExpDate] = useState(today);
+  const [expVehicleId, setExpVehicleId] = useState('');
+  const [expCategory, setExpCategory] = useState<TransactionCategory | ''>('');
+  const [expAmount, setExpAmount] = useState('');
+  const [expPaymentMode, setExpPaymentMode] = useState<'Cash' | 'Bank' | 'UPI' | 'Pending' | 'Check' | 'Online'>('Cash');
+  const [expDesc, setExpDesc] = useState('');
+  const [expPartyName, setExpPartyName] = useState('');
+
+  // Auto-update default category when changing tabs
+  React.useEffect(() => {
+    setExpCategory('');
+  }, [activeExpenseTab]);
+
+  const handleSaveExpenseRow = async () => {
+    if (!expVehicleId || !expCategory || !expAmount || isNaN(Number(expAmount)) || Number(expAmount) <= 0) {
+      alert("Please ensure a vehicle and an expense category are selected, and the Amount is greater than 0.");
+      return;
+    }
+    
+    await addTransaction({
+      vehicleId: expVehicleId,
+      date: expDate,
+      type: 'expense',
+      category: expCategory as TransactionCategory,
+      amount: Number(expAmount),
+      paymentMode: expPaymentMode as any,
+      description: expDesc,
+      partyName: expPartyName.trim() || undefined
+    });
+    
+    setExpAmount('');
+    setExpDesc('');
+    setExpPaymentMode('Cash');
+    setExpPartyName('');
+    setExpCategory('');
+    refreshData();
   };
+
+  const recentIncomes = [...transactions]
+    .filter(t => t.type === 'income')
+    .sort((a, b) => {
+      if (a.createdAt && b.createdAt) {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      }
+      if (a._id && b._id) {
+        return b._id.localeCompare(a._id);
+      }
+      return new Date(b.date).getTime() - new Date(a.date).getTime();
+    })
+    .slice(0, 5);
+  
+  // Filter recent expenses based on the active tab categories
+  const recentExpenses = [...transactions]
+    .filter(t => t.type === 'expense' && currentExpenseCategories.includes(t.category))
+    .sort((a, b) => {
+      if (a.createdAt && b.createdAt) {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      }
+      if (a._id && b._id) {
+        return b._id.localeCompare(a._id);
+      }
+      return new Date(b.date).getTime() - new Date(a.date).getTime();
+    })
+    .slice(0, 5);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      <div className="page-header">
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
         <div className="page-title-group">
-          <h1>Dashboard</h1>
-          <p className="page-subtitle">Welcome back! Here is an overview of your transport fleet accounts.</p>
+          <h1>Dashboard (Quick Entry)</h1>
+          <p className="page-subtitle">Rapidly record income and expenses across your fleet.</p>
+        </div>
+        
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button 
+            className="btn btn-primary" 
+            style={{ backgroundColor: '#3B82F6', color: '#fff', fontWeight: 'bold' }}
+            onClick={() => document.getElementById('income-grid')?.scrollIntoView({ behavior: 'smooth' })}
+          >
+            + Add Income
+          </button>
+          <button 
+            className="btn btn-primary" 
+            style={{ backgroundColor: '#F2994A', color: '#fff', fontWeight: 'bold' }}
+            onClick={() => document.getElementById('expense-grid')?.scrollIntoView({ behavior: 'smooth' })}
+          >
+            + Add Expense
+          </button>
         </div>
       </div>
 
-      {/* Global Stat Cards */}
-      <div className="stats-grid">
-        <div className="card stat-card success">
-          <div className="stat-icon-wrapper">
-            <TrendingUp size={24} />
-          </div>
-          <div className="stat-details">
-            <span className="stat-label">Total Earnings</span>
-            <span className="stat-value">{formatCurrency(summary.totalIncome)}</span>
-          </div>
-        </div>
+      {/* INCOME GRID (FULL WIDTH) */}
+      <div id="income-grid" className="card" style={{ borderTop: '4px solid var(--color-success)', overflowX: 'auto', padding: '16px' }}>
+        <h3 className="card-title" style={{ color: 'var(--color-success)', marginBottom: '16px' }}>Add Income</h3>
 
-        <div className="card stat-card danger">
-          <div className="stat-icon-wrapper">
-            <TrendingDown size={24} />
-          </div>
-          <div className="stat-details">
-            <span className="stat-label">Total Expenses</span>
-            <span className="stat-value">{formatCurrency(summary.totalExpense)}</span>
-          </div>
-        </div>
-
-        <div className={`card stat-card ${summary.balance >= 0 ? 'success' : 'danger'}`}>
-          <div className="stat-icon-wrapper" style={{ backgroundColor: summary.balance >= 0 ? 'var(--color-success-bg)' : 'var(--color-danger-bg)', color: summary.balance >= 0 ? 'var(--color-success)' : 'var(--color-danger)' }}>
-            <DollarSign size={24} />
-          </div>
-          <div className="stat-details">
-            <span className="stat-label">Net Balance</span>
-            <span className="stat-value">{formatCurrency(summary.balance)}</span>
-          </div>
-        </div>
-
-        <div className="card stat-card primary">
-          <div className="stat-icon-wrapper">
-            <Truck size={24} />
-          </div>
-          <div className="stat-details">
-            <span className="stat-label">Active Vehicles</span>
-            <span className="stat-value">{summary.vehicleCount}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Charts and Vehicle Summary */}
-      <div className="dashboard-grid">
-        {/* Recharts chart */}
-        <div className="card" style={{ display: 'flex', flexDirection: 'column', minHeight: '380px' }}>
-          <h3 className="card-title">Income vs Expenses Trend</h3>
-          <div style={{ flexGrow: 1, width: '100%', height: '300px', marginTop: '16px' }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={chartData}
-                margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis dataKey="month" stroke="var(--text-secondary)" fontSize={12} />
-                <YAxis stroke="var(--text-secondary)" fontSize={12} />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#171a26', 
-                    borderColor: 'var(--border-color)',
-                    color: 'var(--text-primary)',
-                    borderRadius: '8px'
-                  }}
-                  formatter={(value: any) => [formatCurrency(Number(value)), '']}
-                />
-                <Legend verticalAlign="top" height={36} iconType="circle" />
-                <Bar name="Earnings" dataKey="income" fill="var(--color-success)" radius={[4, 4, 0, 0]} />
-                <Bar name="Expenses" dataKey="expense" fill="var(--color-danger)" radius={[4, 4, 0, 0]} />
-                <Bar name="Pending" dataKey="pending" fill="var(--color-warning)" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Vehicles Quick Status */}
-        <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
-          <h3 className="card-title">
-            <span>Fleet Status</span>
-            <button className="btn btn-secondary btn-sm" onClick={() => setActiveTab('vehicles')}>View All</button>
-          </h3>
-          <div style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '16px', overflowY: 'auto', maxHeight: '300px' }}>
-            {vehicles.length === 0 ? (
-              <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px 0' }}>
-                No vehicles registered.
-              </div>
-            ) : (
-              vehicles.map(v => {
-                const vSum = getVehicleSummary(v.id, vehicles, transactions);
-                return (
-                  <div 
-                    key={v.id} 
-                    onClick={() => viewVehicleLedger(v.id)}
-                    style={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
-                      alignItems: 'center', 
-                      padding: '12px', 
-                      background: 'rgba(255,255,255,0.02)', 
-                      borderRadius: '8px',
-                      border: '1px solid var(--border-color)',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontWeight: 600 }}>{v.vehicleNumber}</div>
-                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Driver: {v.driverName}</div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div className={vSum.balance >= 0 ? 'amount-income' : 'amount-expense'}>
-                        {formatCurrency(vSum.balance)}
-                      </div>
-                      <span className={`badge ${v.status === 'Active' ? 'success' : 'warning'}`} style={{ fontSize: '0.65rem', padding: '2px 6px', marginTop: '4px' }}>
-                        {v.status}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Recent Ledger Entries */}
-      <div className="card">
-        <h3 className="card-title">
-          <span>Recent Entries</span>
-          <button className="btn btn-secondary btn-sm" onClick={() => setActiveTab('ledger')}>Go to Ledger</button>
-        </h3>
-        {recentTransactions.length === 0 ? (
-          <div className="empty-state" style={{ border: 'none', padding: '30px' }}>
-            <ClipboardList className="empty-state-icon" size={40} />
-            <div className="empty-state-title">No transactions recorded yet</div>
-            <p className="empty-state-desc" style={{ fontSize: '0.85rem' }}>Select the Ledger page to record fuel, tolls, earnings, and more.</p>
-          </div>
-        ) : (
-          <div className="table-container">
-            <table className="custom-table">
-              <thead>
+        <div className="table-container">
+          <table className="custom-table" style={{ minWidth: '1400px' }}>
+            <thead>
+              <tr>
+                <th style={{ width: '120px', textAlign: 'center' }}>Date</th>
+                <th style={{ width: '150px', textAlign: 'center' }}>Vehicle</th>
+                <th style={{ width: '130px', textAlign: 'center' }}>Material</th>
+                <th style={{ width: '140px' }}>From</th>
+                <th style={{ width: '140px' }}>To</th>
+                <th style={{ width: '100px', textAlign: 'center' }}>Weight</th>
+                <th style={{ width: '120px', textAlign: 'center' }}>Rate</th>
+                <th style={{ width: '130px', textAlign: 'right' }}>Total</th>
+                <th style={{ width: '130px', textAlign: 'center' }}>Payment Status</th>
+                <th style={{ width: '150px' }}>Evidence/Ref No.</th>
+                <th style={{ width: '100px', textAlign: 'center' }}>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {/* ACTIVE INPUT ROW */}
+              <tr style={{ background: 'rgba(52, 211, 153, 0.05)' }}>
+                <td>
+                  <input type="date" className="form-control form-control-sm" value={incDate} onChange={e => setIncDate(e.target.value)} style={{ width: '100%', textAlign: 'center' }} />
+                </td>
+                <td>
+                  <select className="form-control form-control-sm" value={incVehicleId} onChange={e => setIncVehicleId(e.target.value)} style={{ width: '100%', textAlign: 'center' }}>
+                    <option value="">Select Vehicle</option>
+                    {vehicles.map(v => <option key={v.id} value={v.id}>{v.vehicleNumber}</option>)}
+                  </select>
+                </td>
+                <td>
+                  <input type="text" className="form-control form-control-sm" placeholder="Material (e.g. Coal)" value={incMaterial} onChange={e => setIncMaterial(e.target.value)} style={{ width: '100%', textAlign: 'center' }} />
+                </td>
+                <td>
+                  <input type="text" className="form-control form-control-sm" placeholder="Origin" value={incFrom} onChange={e => setIncFrom(e.target.value)} style={{ width: '100%' }} />
+                </td>
+                <td>
+                  <input type="text" className="form-control form-control-sm" placeholder="Dest" value={incTo} onChange={e => setIncTo(e.target.value)} style={{ width: '100%' }} />
+                </td>
+                <td>
+                  <input type="number" className="form-control form-control-sm" placeholder="Ton" value={incWeight} onChange={e => setIncWeight(e.target.value)} style={{ width: '100%', textAlign: 'center' }} />
+                </td>
+                <td>
+                  <input type="number" className="form-control form-control-sm" placeholder="₹/Ton" value={incRate} onChange={e => setIncRate(e.target.value)} style={{ width: '100%', textAlign: 'center' }} />
+                </td>
+                <td>
+                  <input type="number" className="form-control form-control-sm" placeholder="Total ₹" value={incAmount} onChange={e => setIncAmount(e.target.value)} style={{ textAlign: 'right', fontWeight: 'bold', color: 'var(--color-success)', width: '100%' }} />
+                </td>
+                <td>
+                  <select className="form-control form-control-sm" value={incPaymentMode} onChange={e => setIncPaymentMode(e.target.value as any)} style={{ width: '100%', textAlign: 'center' }}>
+                    <option value="">Select</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Cash">Cash</option>
+                    <option value="Check">Check</option>
+                    <option value="Online">Online</option>
+                  </select>
+                </td>
+                <td>
+                  <input type="text" className="form-control form-control-sm" placeholder="Check#, UPI ID..." value={incEvidence} onChange={e => setIncEvidence(e.target.value)} style={{ width: '100%' }} />
+                </td>
+                <td style={{ textAlign: 'center' }}>
+                  <button className="btn btn-primary btn-sm" onClick={handleSaveIncomeRow} disabled={vehicles.length === 0 || !incVehicleId || !incPaymentMode || !incAmount || Number(incAmount) <= 0} style={{ backgroundColor: '#3B82F6', color: '#fff', width: '100%' }}>
+                    <Save size={14} /> Add
+                  </button>
+                </td>
+              </tr>
+              
+              {/* RECENT INCOMES */}
+              {recentIncomes.length === 0 ? (
                 <tr>
-                  <th>Date</th>
-                  <th>Vehicle Number</th>
-                  <th>Category</th>
-                  <th>Payment Mode</th>
-                  <th>Description</th>
-                  <th style={{ textAlign: 'right' }}>Amount</th>
+                  <td colSpan={11} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>No recent income</td>
                 </tr>
-              </thead>
-              <tbody>
-                {recentTransactions.map(t => {
+              ) : (
+                recentIncomes.map(t => {
                   const vehicle = vehicles.find(v => v.id === t.vehicleId);
                   return (
                     <tr key={t.id}>
-                      <td>{t.date}</td>
-                      <td style={{ fontWeight: 600 }}>{vehicle ? vehicle.vehicleNumber : 'Deleted Vehicle'}</td>
-                      <td>
-                        <span className={`badge ${t.type === 'income' ? 'success' : 'danger'}`}>
-                          {t.category}
-                        </span>
+                      <td style={{ textAlign: 'center' }}>{formatDate(t.date)}</td>
+                      <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>{vehicle ? vehicle.vehicleNumber : '-'}</td>
+                      <td style={{ textAlign: 'center', fontWeight: '500' }}>{t.material || '-'}</td>
+                      <td>{t.from || '-'}</td>
+                      <td>{t.to || '-'}</td>
+                      <td style={{ textAlign: 'center' }}>{t.weight || '-'}</td>
+                      <td style={{ textAlign: 'center' }}>{t.rate ? formatCurrency(t.rate) : '-'}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 600 }} className="amount-income">
+                        +{formatCurrency(t.amount)}
                       </td>
-                      <td>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                          <span>{t.paymentMode}</span>
-                          {t.wasPending && (
-                            <span 
-                              style={{ 
-                                color: 'var(--color-success)', 
-                                fontWeight: 'bold',
-                                fontSize: '0.9rem'
-                              }} 
-                              title="Originally Pending, now Cleared"
-                            >
-                              ✓
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{t.description || '-'}</td>
-                      <td style={{ textAlign: 'right' }} className={t.type === 'income' ? 'amount-income' : 'amount-expense'}>
-                        {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
-                      </td>
+                      <td style={{ textAlign: 'center' }}>{t.paymentMode}</td>
+                      <td>{t.description || '-'}</td>
+                      <td style={{ textAlign: 'center' }}>-</td>
                     </tr>
                   );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
+
+      {/* EXPENSE GRID (FULL WIDTH WITH TABS) */}
+      <div id="expense-grid" className="card" style={{ borderTop: '4px solid var(--color-danger)', overflowX: 'auto', display: 'flex', flexDirection: 'column', gap: '16px', padding: '16px' }}>
+        <h3 className="card-title" style={{ color: 'var(--color-danger)', marginTop: '8px', marginBottom: '8px' }}>
+          Add Expenses
+        </h3>
+
+        {/* TABS (Now placed BELOW the "Add Expenses" heading) */}
+        <div style={{ display: 'flex', gap: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+          <button 
+            className={`btn ${activeExpenseTab === 'fixed' ? 'btn-primary' : 'btn-secondary'}`}
+            style={activeExpenseTab === 'fixed' ? { backgroundColor: 'var(--color-danger)', color: '#fff', borderColor: 'var(--color-danger)' } : {}}
+            onClick={() => setActiveExpenseTab('fixed')}
+          >
+            🏢 Fixed Expenses
+          </button>
+          <button 
+            className={`btn ${activeExpenseTab === 'maintenance' ? 'btn-primary' : 'btn-secondary'}`}
+            style={activeExpenseTab === 'maintenance' ? { backgroundColor: 'var(--color-danger)', color: '#fff', borderColor: 'var(--color-danger)' } : {}}
+            onClick={() => setActiveExpenseTab('maintenance')}
+          >
+            🔧 Maintenance Expenses
+          </button>
+        </div>
+
+        <div className="table-container">
+          <table className="custom-table" style={{ minWidth: '1200px' }}>
+            <thead>
+              <tr>
+                <th style={{ width: '130px', textAlign: 'center' }}>Date</th>
+                <th style={{ width: '160px', textAlign: 'center' }}>Vehicle</th>
+                <th style={{ width: '200px' }}>{activeExpenseTab === 'fixed' ? 'Fixed Category' : 'Maintenance Cost Type'}</th>
+                <th style={{ width: '180px' }}>Party Name</th>
+                <th style={{ textAlign: 'right', width: '140px' }}>Amount</th>
+                <th style={{ width: '150px', textAlign: 'center' }}>Payable Status</th>
+                <th style={{ width: '250px' }}>Evidence/Ref No.</th>
+                <th style={{ width: '120px', textAlign: 'center' }}>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {/* ACTIVE INPUT ROW */}
+              <tr style={{ background: 'rgba(239, 68, 68, 0.05)' }}>
+                <td>
+                  <input type="date" className="form-control form-control-sm" value={expDate} onChange={e => setExpDate(e.target.value)} style={{ width: '100%', textAlign: 'center' }} />
+                </td>
+                <td>
+                  <select className="form-control form-control-sm" value={expVehicleId} onChange={e => setExpVehicleId(e.target.value)} style={{ width: '100%', textAlign: 'center' }}>
+                    <option value="">Select Vehicle</option>
+                    {vehicles.map(v => <option key={v.id} value={v.id}>{v.vehicleNumber}</option>)}
+                  </select>
+                </td>
+                <td>
+                  <select className="form-control form-control-sm" value={expCategory} onChange={e => setExpCategory(e.target.value as TransactionCategory)} style={{ width: '100%' }}>
+                    <option value="">Select Expense</option>
+                    {currentExpenseCategories.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </td>
+                <td>
+                  <input type="text" className="form-control form-control-sm" placeholder="Paid To (Party Name)" value={expPartyName} onChange={e => setExpPartyName(e.target.value)} style={{ width: '100%' }} />
+                </td>
+                <td>
+                  <input type="number" className="form-control form-control-sm" placeholder="₹ Amount" value={expAmount} onChange={e => setExpAmount(e.target.value)} style={{ textAlign: 'right', width: '100%' }} />
+                </td>
+                <td>
+                  <select className="form-control form-control-sm" value={expPaymentMode} onChange={e => setExpPaymentMode(e.target.value as any)} style={{ width: '100%', textAlign: 'center' }}>
+                    <option value="Cash">Cash</option>
+                    <option value="Bank">Bank</option>
+                    <option value="UPI">UPI</option>
+                    <option value="Check">Check</option>
+                    <option value="Online">Online</option>
+                    <option value="Pending">Pending</option>
+                  </select>
+                </td>
+                <td>
+                  <input type="text" className="form-control form-control-sm" placeholder="Ref/Notes/Evidence" value={expDesc} onChange={e => setExpDesc(e.target.value)} style={{ width: '100%' }} />
+                </td>
+                <td style={{ textAlign: 'center' }}>
+                  <button className="btn btn-primary btn-sm" onClick={handleSaveExpenseRow} disabled={vehicles.length === 0 || !expVehicleId || !expCategory || !expAmount} style={{ backgroundColor: '#F2994A', color: '#fff', width: '100%' }}>
+                    <Save size={14} /> Add
+                  </button>
+                </td>
+              </tr>
+              
+              {/* RECENT EXPENSES */}
+              {recentExpenses.length === 0 ? (
+                <tr>
+                  <td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>No recent expenses in this category</td>
+                </tr>
+              ) : recentExpenses.map(t => {
+                const vehicle = vehicles.find(v => v.id === t.vehicleId);
+                return (
+                  <tr key={t.id}>
+                    <td style={{ textAlign: 'center' }}>{formatDate(t.date)}</td>
+                    <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>{vehicle ? vehicle.vehicleNumber : '-'}</td>
+                    <td>{t.category}</td>
+                    <td>{t.partyName || '-'}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 600 }} className="amount-expense">
+                      -{formatCurrency(t.amount)}
+                    </td>
+                    <td style={{ textAlign: 'center' }}>{t.paymentMode}</td>
+                    <td>{t.description || '-'}</td>
+                    <td style={{ textAlign: 'center' }}>-</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
     </div>
   );
 };

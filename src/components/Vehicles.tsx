@@ -1,22 +1,16 @@
 import React, { useState } from 'react';
 import { Plus, Edit2, Trash2, Phone, User, X, Truck } from 'lucide-react';
-import type { Vehicle, Transaction } from '../types';
-import { addVehicle, updateVehicle, deleteVehicle, getVehicleSummary } from '../utils/storage';
+import type { Vehicle } from '../types';
+import { addVehicle, updateVehicle, deleteVehicle } from '../utils/storage';
 
 interface VehiclesProps {
   vehicles: Vehicle[];
-  transactions: Transaction[];
   refreshData: () => void;
-  setActiveTab: (tab: string) => void;
-  setSelectedVehicleId: (id: string | null) => void;
 }
 
 export const Vehicles: React.FC<VehiclesProps> = ({ 
   vehicles,
-  transactions, 
-  refreshData,
-  setActiveTab,
-  setSelectedVehicleId
+  refreshData
 }) => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -39,12 +33,21 @@ export const Vehicles: React.FC<VehiclesProps> = ({
     setStatus('Active');
   };
 
+  const formatVehicleNumber = (val: string) => {
+    let cleaned = val.trim().toUpperCase();
+    const regex = /^([A-Z]{2})-([0-9]{2})(-[A-Z0-9].*)$/;
+    if (regex.test(cleaned)) {
+      cleaned = cleaned.replace(regex, '$1$2$3');
+    }
+    return cleaned;
+  };
+
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!vehicleNumber.trim()) return;
 
     await addVehicle({
-      vehicleNumber: vehicleNumber.trim().toUpperCase(),
+      vehicleNumber: formatVehicleNumber(vehicleNumber),
       driverName: driverName.trim() || 'Not Assigned',
       driverPhone: driverPhone.trim() || '-',
       ownerName: ownerName.trim() || 'Self',
@@ -75,7 +78,7 @@ export const Vehicles: React.FC<VehiclesProps> = ({
 
     await updateVehicle({
       ...currentVehicle,
-      vehicleNumber: vehicleNumber.trim().toUpperCase(),
+      vehicleNumber: formatVehicleNumber(vehicleNumber),
       driverName: driverName.trim() || 'Not Assigned',
       driverPhone: driverPhone.trim() || '-',
       ownerName: ownerName.trim() || 'Self',
@@ -98,24 +101,15 @@ export const Vehicles: React.FC<VehiclesProps> = ({
     }
   };
 
-  const handleCardClick = (id: string) => {
-    setSelectedVehicleId(id);
-    setActiveTab('ledger');
-  };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 0
-    }).format(amount);
-  };
+
+
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <div className="page-header">
         <div className="page-title-group">
-          <h1>Vehicle Fleet</h1>
+          <h1>My Vehicle</h1>
           <p className="page-subtitle">Manage registered vehicles, edit details, and view current account standings.</p>
         </div>
         <button className="btn btn-primary" onClick={() => setIsAddModalOpen(true)}>
@@ -136,20 +130,16 @@ export const Vehicles: React.FC<VehiclesProps> = ({
       ) : (
         <div className="vehicle-grid">
           {vehicles.map((v) => {
-            const sum = getVehicleSummary(v.id, vehicles, transactions);
             return (
               <div 
                 key={v.id} 
                 className="card vehicle-card"
-                onClick={() => handleCardClick(v.id)}
+                style={{ cursor: 'default' }}
               >
                 <div className="vehicle-card-accent" />
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div>
                     <div className="vehicle-card-num">{v.vehicleNumber}</div>
-                    <span className={`badge ${v.status === 'Active' ? 'success' : 'warning'}`}>
-                      {v.status}
-                    </span>
                   </div>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <button 
@@ -186,18 +176,9 @@ export const Vehicles: React.FC<VehiclesProps> = ({
                       <span>{v.driverPhone}</span>
                     </div>
                   </div>
-                  <div style={{ gridColumn: 'span 2' }}>
-                    <div className="vehicle-card-label">Type & Owner</div>
-                    <div style={{ color: 'var(--text-primary)' }}>{v.type} ({v.ownerName})</div>
-                  </div>
                 </div>
 
-                <div className="vehicle-card-balance">
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Ledger Balance:</span>
-                  <span className={sum.balance >= 0 ? 'amount-income' : 'amount-expense'} style={{ fontWeight: 700, fontSize: '1.1rem' }}>
-                    {formatCurrency(sum.balance)}
-                  </span>
-                </div>
+                {/* No ledger button */}
               </div>
             );
           })}
@@ -253,48 +234,6 @@ export const Vehicles: React.FC<VehiclesProps> = ({
                       onChange={(e) => setDriverPhone(e.target.value)}
                     />
                   </div>
-                </div>
-
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">Owner Name</label>
-                    <input 
-                      type="text" 
-                      className="form-control" 
-                      placeholder="E.g. Transport Corp or Self" 
-                      value={ownerName}
-                      onChange={(e) => setOwnerName(e.target.value)}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Vehicle Type</label>
-                    <select 
-                      className="form-select"
-                      value={type}
-                      onChange={(e) => setType(e.target.value)}
-                    >
-                      <option value="6-Wheeler Dumper">6-Wheeler Dumper</option>
-                      <option value="10-Wheeler Truck">10-Wheeler Truck</option>
-                      <option value="12-Wheeler Truck">12-Wheeler Truck</option>
-                      <option value="14-Wheeler Trailer">14-Wheeler Trailer</option>
-                      <option value="18-Wheeler Trailer">18-Wheeler Trailer</option>
-                      <option value="Container Truck">Container Truck</option>
-                      <option value="Tanker">Tanker</option>
-                      <option value="Mini LCV (Tata Ace/Bolero)">Mini LCV (Tata Ace/Bolero)</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Status</label>
-                  <select 
-                    className="form-select"
-                    value={status}
-                    onChange={(e) => setStatus(e.target.value as 'Active' | 'Maintenance')}
-                  >
-                    <option value="Active">Active / On Road</option>
-                    <option value="Maintenance">Maintenance / Workshop</option>
-                  </select>
                 </div>
               </div>
               <div className="modal-footer">
@@ -354,48 +293,6 @@ export const Vehicles: React.FC<VehiclesProps> = ({
                       onChange={(e) => setDriverPhone(e.target.value)}
                     />
                   </div>
-                </div>
-
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">Owner Name</label>
-                    <input 
-                      type="text" 
-                      className="form-control" 
-                      placeholder="E.g. Self" 
-                      value={ownerName}
-                      onChange={(e) => setOwnerName(e.target.value)}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Vehicle Type</label>
-                    <select 
-                      className="form-select"
-                      value={type}
-                      onChange={(e) => setType(e.target.value)}
-                    >
-                      <option value="6-Wheeler Dumper">6-Wheeler Dumper</option>
-                      <option value="10-Wheeler Truck">10-Wheeler Truck</option>
-                      <option value="12-Wheeler Truck">12-Wheeler Truck</option>
-                      <option value="14-Wheeler Trailer">14-Wheeler Trailer</option>
-                      <option value="18-Wheeler Trailer">18-Wheeler Trailer</option>
-                      <option value="Container Truck">Container Truck</option>
-                      <option value="Tanker">Tanker</option>
-                      <option value="Mini LCV (Tata Ace/Bolero)">Mini LCV (Tata Ace/Bolero)</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Status</label>
-                  <select 
-                    className="form-select"
-                    value={status}
-                    onChange={(e) => setStatus(e.target.value as 'Active' | 'Maintenance')}
-                  >
-                    <option value="Active">Active / On Road</option>
-                    <option value="Maintenance">Maintenance / Workshop</option>
-                  </select>
                 </div>
               </div>
               <div className="modal-footer">

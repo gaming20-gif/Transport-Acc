@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, ClipboardList, Filter, X, ArrowUpRight, ArrowDownRight, IndianRupee, Check, Clock, Paperclip, Eye, Download } from 'lucide-react';
+import { Plus, Edit2, Trash2, ClipboardList, Filter, X, ArrowUpRight, ArrowDownRight, IndianRupee } from 'lucide-react';
 import type { Vehicle, Transaction, TransactionCategory } from '../types';
 import { 
   addTransaction, 
@@ -32,7 +32,23 @@ const EXPENSE_CATEGORIES: TransactionCategory[] = [
   'Insurance / Tax / Permit',
   'Loading/Unloading Labour',
   'Office/Admin Expense',
-  'Other Expense'
+  'Other Expense',
+  'Fuel (Diesel)',
+  'Driver Charge / Salary',
+  'Loading Charge',
+  'Toll Tax',
+  'Way Bridge Charge',
+  'Other Fixed Charge',
+  'Puncture Repair',
+  'Air Filling',
+  'General Service',
+  'Washing',
+  'Oil Change',
+  'Battery',
+  'Tyre Repair / Replacement',
+  'Spare Parts',
+  'Mechanical Repair',
+  'Other Maintenance'
 ];
 
 export const Ledger: React.FC<LedgerProps> = ({
@@ -50,16 +66,18 @@ export const Ledger: React.FC<LedgerProps> = ({
   // Form states
   const [txType, setTxType] = useState<'income' | 'expense'>('income');
   const [txDate, setTxDate] = useState(new Date().toISOString().split('T')[0]);
-  const [txCategory, setTxCategory] = useState<TransactionCategory>('Freight Booking');
+  const [txCategory, setTxCategory] = useState<TransactionCategory | ''>('');
   const [txAmount, setTxAmount] = useState('');
-  const [txPaymentMode, setTxPaymentMode] = useState<'Cash' | 'Bank' | 'UPI' | 'Pending'>('Cash');
+  const [txPaymentMode, setTxPaymentMode] = useState<'Cash' | 'Bank' | 'UPI' | 'Pending' | 'Check' | 'Online'>('Cash');
   const [txDescription, setTxDescription] = useState('');
   const [txEvidence, setTxEvidence] = useState<string>('');
   const [txEvidenceName, setTxEvidenceName] = useState<string>('');
 
-  // Preview overlay states
-  const [previewEvidence, setPreviewEvidence] = useState<string | null>(null);
-  const [previewEvidenceName, setPreviewEvidenceName] = useState<string | null>(null);
+  const [txFrom, setTxFrom] = useState('');
+  const [txTo, setTxTo] = useState('');
+  const [txWeight, setTxWeight] = useState('');
+  const [txRate, setTxRate] = useState('');
+  const [txPartyName, setTxPartyName] = useState('');
 
   // Filters
   const [startDate, setStartDate] = useState('');
@@ -69,79 +87,40 @@ export const Ledger: React.FC<LedgerProps> = ({
 
   // Sync category state when txType changes in modal
   useEffect(() => {
-    if (txType === 'income') {
-      setTxCategory(INCOME_CATEGORIES[0]);
-    } else {
-      setTxCategory(EXPENSE_CATEGORIES[0]);
-    }
+    setTxCategory('');
   }, [txType]);
+
+  // Auto-calculate amount when weight or rate changes in Ledger modal
+  useEffect(() => {
+    const w = Number(txWeight);
+    const r = Number(txRate);
+    if (w > 0 && r > 0) {
+      setTxAmount((w * r).toString());
+    }
+  }, [txWeight, txRate]);
 
   const resetForm = () => {
     setTxType('income');
     setTxDate(new Date().toISOString().split('T')[0]);
-    setTxCategory('Freight Booking');
+    setTxCategory('');
     setTxAmount('');
     setTxPaymentMode('Cash');
     setTxDescription('');
     setTxEvidence('');
     setTxEvidenceName('');
-  };
-
-  const handleEvidenceFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > 1024 * 1024) { // 1MB limit
-      alert("File size exceeds 1MB limit. Please upload a smaller receipt or invoice to save storage space.");
-      e.target.value = '';
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const result = event.target?.result;
-      if (typeof result === 'string') {
-        setTxEvidence(result);
-        setTxEvidenceName(file.name);
-      }
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleOpenAddModal = (type: 'income' | 'expense') => {
-    setTxType(type);
-    setIsAddModalOpen(true);
-  };
-
-  const handleOpenAddModalPending = () => {
-    setTxPaymentMode('Pending');
-    setIsAddModalOpen(true);
-  };
-
-  const handleClearPending = async (tx: Transaction) => {
-    const mode = window.prompt('Enter cleared payment mode (Cash / Bank / UPI):', 'Cash');
-    if (!mode) return;
-    const cleanMode = mode.trim();
-    const upperMode = cleanMode.toUpperCase();
-    if (upperMode === 'CASH' || upperMode === 'BANK' || upperMode === 'UPI') {
-      let finalMode: 'Cash' | 'Bank' | 'UPI' = 'Cash';
-      if (upperMode === 'BANK') finalMode = 'Bank';
-      if (upperMode === 'UPI') finalMode = 'UPI';
-
-      await updateTransaction({
-        ...tx,
-        paymentMode: finalMode,
-        wasPending: true
-      });
-      refreshData();
-    } else {
-      alert('Invalid payment mode! Please enter Cash, Bank, or UPI.');
-    }
+    setTxFrom('');
+    setTxTo('');
+    setTxWeight('');
+    setTxRate('');
+    setTxPartyName('');
   };
 
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedVehicleId || !txAmount) return;
+    if (!selectedVehicleId || !txCategory || !txAmount) {
+      alert("Please ensure all required fields are filled, including Category.");
+      return;
+    }
 
     await addTransaction({
       vehicleId: selectedVehicleId,
@@ -152,7 +131,12 @@ export const Ledger: React.FC<LedgerProps> = ({
       paymentMode: txPaymentMode,
       description: txDescription.trim(),
       evidence: txEvidence || undefined,
-      evidenceName: txEvidenceName || undefined
+      evidenceName: txEvidenceName || undefined,
+      from: txType === 'income' ? txFrom : undefined,
+      to: txType === 'income' ? txTo : undefined,
+      weight: txType === 'income' && txWeight ? Number(txWeight) : undefined,
+      rate: txType === 'income' && txRate ? Number(txRate) : undefined,
+      partyName: txType === 'expense' ? txPartyName.trim() || undefined : undefined
     });
 
     resetForm();
@@ -160,22 +144,13 @@ export const Ledger: React.FC<LedgerProps> = ({
     refreshData();
   };
 
-  const handleOpenEditModal = (tx: Transaction) => {
-    setCurrentTx(tx);
-    setTxType(tx.type);
-    setTxDate(tx.date);
-    setTxCategory(tx.category);
-    setTxAmount(tx.amount.toString());
-    setTxPaymentMode(tx.paymentMode);
-    setTxDescription(tx.description);
-    setTxEvidence(tx.evidence || '');
-    setTxEvidenceName(tx.evidenceName || '');
-    setIsEditModalOpen(true);
-  };
 
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentTx || !txAmount) return;
+    if (!currentTx || !txCategory || !txAmount) {
+      alert("Please ensure all required fields are filled, including Category.");
+      return;
+    }
 
     const isNowCleared = currentTx.paymentMode === 'Pending' && txPaymentMode !== 'Pending';
     const isNowPending = txPaymentMode === 'Pending';
@@ -256,6 +231,15 @@ export const Ledger: React.FC<LedgerProps> = ({
       currency: 'INR',
       maximumFractionDigits: 0
     }).format(amount);
+  };
+
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return '-';
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    return dateStr;
   };
 
   return (
@@ -397,20 +381,6 @@ export const Ledger: React.FC<LedgerProps> = ({
               )}
             </div>
 
-            <div className="ledger-actions">
-              <button className="btn btn-success" onClick={() => handleOpenAddModal('income')}>
-                <Plus size={18} />
-                Add Income
-              </button>
-              <button className="btn btn-primary" onClick={() => handleOpenAddModal('expense')}>
-                <Plus size={18} />
-                Add Cost / Expense
-              </button>
-              <button className="btn" style={{ backgroundColor: 'var(--color-warning)', color: 'black' }} onClick={handleOpenAddModalPending}>
-                <Plus size={18} />
-                Add Pending
-              </button>
-            </div>
           </div>
 
           {/* Ledger Account Table */}
@@ -427,92 +397,40 @@ export const Ledger: React.FC<LedgerProps> = ({
                 <table className="custom-table">
                   <thead>
                     <tr>
-                      <th>Date</th>
-                      <th>Category</th>
-                      <th>Payment Mode</th>
-                      <th>Description</th>
+                      <th style={{ width: '100px', textAlign: 'center' }}>Date</th>
+                      <th style={{ width: '120px', textAlign: 'center' }}>Category</th>
+                      <th style={{ width: '150px' }}>Party Name</th>
+                      <th>From</th>
+                      <th>To</th>
+                      <th style={{ textAlign: 'center' }}>Wt (Ton)</th>
+                      <th style={{ textAlign: 'center' }}>Rate (₹)</th>
                       <th style={{ textAlign: 'right' }}>Amount</th>
-                      <th style={{ textAlign: 'center', width: '100px' }}>Actions</th>
+                      <th style={{ textAlign: 'center' }}>Mode</th>
+                      <th>Ref/Desc</th>
+                      <th style={{ textAlign: 'center', width: '80px' }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredTxs.map(t => (
                       <tr key={t.id}>
-                        <td>{t.date}</td>
-                        <td>
+                        <td style={{ textAlign: 'center' }}>{formatDate(t.date)}</td>
+                        <td style={{ textAlign: 'center' }}>
                           <span className={`badge ${t.type === 'income' ? 'success' : 'danger'}`}>
                             {t.category}
                           </span>
                         </td>
-                        <td>
-                          {t.paymentMode === 'Pending' ? (
-                            <span className="badge warning" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                              <Clock size={12} />
-                              PENDING
-                            </span>
-                          ) : (
-                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                              <span>{t.paymentMode}</span>
-                              {t.wasPending && (
-                                <span 
-                                  className="badge success" 
-                                  style={{ 
-                                    fontSize: '0.65rem', 
-                                    padding: '2px 6px', 
-                                    display: 'inline-flex', 
-                                    alignItems: 'center', 
-                                    gap: '2px', 
-                                    background: 'var(--color-success-bg)',
-                                    color: 'var(--color-success)',
-                                    border: '1px solid rgba(16, 185, 129, 0.2)'
-                                  }}
-                                  title="Originally Pending, now Cleared"
-                                >
-                                  <Check size={8} />
-                                  CLEARED
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </td>
-                        <td style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                            <span>{t.description || '-'}</span>
-                            {t.evidence && (
-                              <button 
-                                className="btn btn-secondary btn-sm" 
-                                style={{ padding: '3px 8px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                                onClick={() => {
-                                  setPreviewEvidence(t.evidence || null);
-                                  setPreviewEvidenceName(t.evidenceName || null);
-                                }}
-                                title={`View Attached Bill: ${t.evidenceName}`}
-                              >
-                                <Paperclip size={12} />
-                                Bill
-                              </button>
-                            )}
-                          </div>
-                        </td>
+                        <td>{t.partyName || '-'}</td>
+                        <td>{t.from || '-'}</td>
+                        <td>{t.to || '-'}</td>
+                        <td style={{ textAlign: 'center' }}>{t.weight || '-'}</td>
+                        <td style={{ textAlign: 'center' }}>{t.rate ? formatCurrency(t.rate) : '-'}</td>
                         <td style={{ textAlign: 'right' }} className={t.type === 'income' ? 'amount-income' : 'amount-expense'}>
                           {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
                         </td>
+                        <td style={{ textAlign: 'center' }}>{t.paymentMode}</td>
+                        <td style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{t.description || '-'}</td>
                         <td style={{ textAlign: 'center' }}>
                           <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                            {t.paymentMode === 'Pending' && (
-                              <button 
-                                className="btn btn-success btn-sm" 
-                                style={{ padding: '6px 10px', background: 'var(--color-success)', color: 'white', display: 'inline-flex', alignItems: 'center', gap: '4px' }} 
-                                onClick={() => handleClearPending(t)} 
-                                title="Clear payment / Mark paid"
-                              >
-                                <Check size={12} />
-                                Clear
-                              </button>
-                            )}
-                            <button className="btn btn-secondary btn-sm" style={{ padding: '6px' }} onClick={() => handleOpenEditModal(t)} title="Edit">
-                              <Edit2 size={12} />
-                            </button>
                             <button className="btn btn-outline-danger btn-sm" style={{ padding: '6px' }} onClick={() => handleDeleteTx(t.id)} title="Delete">
                               <Trash2 size={12} />
                             </button>
@@ -592,6 +510,7 @@ export const Ledger: React.FC<LedgerProps> = ({
                       onChange={e => setTxCategory(e.target.value as TransactionCategory)}
                       required
                     >
+                      <option value="">-- Choose Category --</option>
                       {txType === 'income' 
                         ? INCOME_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)
                         : EXPENSE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)
@@ -613,45 +532,81 @@ export const Ledger: React.FC<LedgerProps> = ({
                     />
                   </div>
                 </div>
-
-                <div className="form-group">
-                  <label className="form-label">Description / Remarks</label>
-                  <textarea 
-                    className="form-control" 
-                    style={{ height: '80px', resize: 'vertical' }}
-                    placeholder="Enter trip details, petrol bunk name, driver allowances, etc."
-                    value={txDescription}
-                    onChange={e => setTxDescription(e.target.value)}
-                  />
-                </div>
-
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Evidence / Receipt File (Optional - Max 1MB)</label>
-                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                    <input 
-                      type="file" 
-                      className="form-control" 
-                      accept="image/*,application/pdf"
-                      onChange={handleEvidenceFileChange}
-                      style={{ flexGrow: 1 }}
-                    />
-                    {txEvidence && (
-                      <button 
-                        type="button" 
-                        className="btn btn-outline-danger" 
-                        onClick={() => { setTxEvidence(''); setTxEvidenceName(''); }}
-                        title="Remove attached file"
-                      >
-                        Remove
-                      </button>
-                    )}
-                  </div>
-                  {txEvidence && (
-                    <div style={{ marginTop: '8px', fontSize: '0.85rem', color: 'var(--color-success)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Check size={14} />
-                      Attached: <strong>{txEvidenceName}</strong>
+                {txType === 'income' && (
+                  <>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label className="form-label">Origin (From)</label>
+                        <input 
+                          type="text" 
+                          className="form-control" 
+                          placeholder="Origin Location" 
+                          value={txFrom} 
+                          onChange={e => setTxFrom(e.target.value)} 
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Destination (To)</label>
+                        <input 
+                          type="text" 
+                          className="form-control" 
+                          placeholder="Destination Location" 
+                          value={txTo} 
+                          onChange={e => setTxTo(e.target.value)} 
+                        />
+                      </div>
                     </div>
-                  )}
+
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label className="form-label">Weight (Tons)</label>
+                        <input 
+                          type="number" 
+                          className="form-control" 
+                          placeholder="Weight in Tons" 
+                          value={txWeight} 
+                          onChange={e => setTxWeight(e.target.value)} 
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Rate / Ton (₹)</label>
+                        <input 
+                          type="number" 
+                          className="form-control" 
+                          placeholder="Rate per Ton" 
+                          value={txRate} 
+                          onChange={e => setTxRate(e.target.value)} 
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+                {txType === 'expense' && (
+                  <div className="form-row">
+                    <div className="form-group" style={{ flexGrow: 1 }}>
+                      <label className="form-label">Party Name (Paid To)</label>
+                      <input 
+                        type="text" 
+                        className="form-control" 
+                        placeholder="Enter party name (person/company paid)" 
+                        value={txPartyName} 
+                        onChange={e => setTxPartyName(e.target.value)} 
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="form-row">
+                  <div className="form-group" style={{ flexGrow: 1 }}>
+                    <label className="form-label">Evidence / Ref No. / Description</label>
+                    <input 
+                      type="text" 
+                      className="form-control" 
+                      placeholder="Ref, check number, UPI ID, or notes" 
+                      value={txDescription} 
+                      onChange={e => setTxDescription(e.target.value)} 
+                    />
+                  </div>
                 </div>
               </div>
               <div className="modal-footer">
@@ -699,33 +654,6 @@ export const Ledger: React.FC<LedgerProps> = ({
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label className="form-label">Date *</label>
-                    <input 
-                      type="date" 
-                      className="form-control" 
-                      value={txDate}
-                      onChange={e => setTxDate(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Payment Mode *</label>
-                    <select 
-                      className="form-select"
-                      value={txPaymentMode}
-                      onChange={e => setTxPaymentMode(e.target.value as 'Cash' | 'Bank' | 'UPI' | 'Pending')}
-                      required
-                    >
-                      <option value="Cash">Cash</option>
-                      <option value="Bank">Bank Transfer</option>
-                      <option value="UPI">UPI / Fastag</option>
-                      <option value="Pending">Pending / Unpaid</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="form-row">
-                  <div className="form-group">
                     <label className="form-label">Category *</label>
                     <select 
                       className="form-select"
@@ -733,6 +661,7 @@ export const Ledger: React.FC<LedgerProps> = ({
                       onChange={e => setTxCategory(e.target.value as TransactionCategory)}
                       required
                     >
+                      <option value="">-- Choose Category --</option>
                       {txType === 'income' 
                         ? INCOME_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)
                         : EXPENSE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)
@@ -753,45 +682,17 @@ export const Ledger: React.FC<LedgerProps> = ({
                     />
                   </div>
                 </div>
-
-                <div className="form-group">
-                  <label className="form-label">Description / Remarks</label>
-                  <textarea 
-                    className="form-control" 
-                    style={{ height: '80px', resize: 'vertical' }}
-                    placeholder="Enter trip details..."
-                    value={txDescription}
-                    onChange={e => setTxDescription(e.target.value)}
-                  />
-                </div>
-
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Evidence / Receipt File (Optional - Max 1MB)</label>
-                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Date *</label>
                     <input 
-                      type="file" 
+                      type="date" 
                       className="form-control" 
-                      accept="image/*,application/pdf"
-                      onChange={handleEvidenceFileChange}
-                      style={{ flexGrow: 1 }}
+                      value={txDate}
+                      onChange={e => setTxDate(e.target.value)}
+                      required
                     />
-                    {txEvidence && (
-                      <button 
-                        type="button" 
-                        className="btn btn-outline-danger" 
-                        onClick={() => { setTxEvidence(''); setTxEvidenceName(''); }}
-                        title="Remove attached file"
-                      >
-                        Remove
-                      </button>
-                    )}
                   </div>
-                  {txEvidence && (
-                    <div style={{ marginTop: '8px', fontSize: '0.85rem', color: 'var(--color-success)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Check size={14} />
-                      Attached: <strong>{txEvidenceName}</strong>
-                    </div>
-                  )}
                 </div>
               </div>
               <div className="modal-footer">
@@ -803,69 +704,7 @@ export const Ledger: React.FC<LedgerProps> = ({
         </div>
       )}
 
-      {/* Evidence Preview Modal */}
-      {previewEvidence && (
-        <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '600px' }}>
-            <div className="modal-header">
-              <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Eye size={20} className="amount-income" />
-                Evidence Preview: {previewEvidenceName}
-              </h3>
-              <button 
-                className="btn btn-secondary" 
-                style={{ padding: '6px' }} 
-                onClick={() => { setPreviewEvidence(null); setPreviewEvidenceName(null); }}
-              >
-                <X size={18} />
-              </button>
-            </div>
-            <div className="modal-body" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#07080c', minHeight: '200px' }}>
-              {previewEvidence.startsWith('data:image/') ? (
-                <img 
-                  src={previewEvidence} 
-                  alt="Attachment Receipt" 
-                  style={{ maxWidth: '100%', maxHeight: '60vh', objectFit: 'contain', borderRadius: '4px' }} 
-                />
-              ) : (
-                <div style={{ textAlign: 'center', padding: '20px' }}>
-                  <Paperclip size={48} style={{ color: 'var(--text-muted)', marginBottom: '16px' }} />
-                  <p style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>PDF or other binary document preview is not supported directly in local sandbox.</p>
-                  <a 
-                    href={previewEvidence} 
-                    download={previewEvidenceName || 'evidence'} 
-                    className="btn btn-primary"
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
-                  >
-                    <Download size={16} />
-                    Download File to View
-                  </a>
-                </div>
-              )}
-            </div>
-            <div className="modal-footer">
-              <button 
-                type="button" 
-                className="btn btn-secondary" 
-                onClick={() => { setPreviewEvidence(null); setPreviewEvidenceName(null); }}
-              >
-                Close
-              </button>
-              {previewEvidence.startsWith('data:image/') && (
-                <a 
-                  href={previewEvidence} 
-                  download={previewEvidenceName || 'receipt'} 
-                  className="btn btn-primary"
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
-                >
-                  <Download size={16} />
-                  Download receipt
-                </a>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+
     </div>
   );
 };

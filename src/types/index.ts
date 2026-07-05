@@ -25,7 +25,33 @@ export type TransactionCategory =
   | 'Insurance / Tax / Permit'
   | 'Loading/Unloading Labour'
   | 'Office/Admin Expense'
-  | 'Other Expense';
+  | 'Other Expense'
+  // New specific categories requested by user
+  | 'Fuel (Diesel)'
+  | 'Driver Charge / Salary'
+  | 'Loading Charge'
+  | 'Toll Tax'
+  | 'Other Fixed Charge'
+  | 'Way Bridge Charge'
+  // New maintenance categories requested by user
+  | 'Puncture Repair'
+  | 'Air Filling'
+  | 'General Service'
+  | 'Washing'
+  | 'Oil Change'
+  | 'Battery'
+  | 'Tyre Repair / Replacement'
+  | 'Spare Parts'
+  | 'Mechanical Repair'
+  | 'Other Maintenance';
+
+export interface Payment {
+  id: string;
+  date: string;
+  amount: number;
+  paymentMode: 'Cash' | 'Bank' | 'UPI' | 'Check' | 'Online';
+  description: string;
+}
 
 export interface Transaction {
   id: string;
@@ -34,12 +60,23 @@ export interface Transaction {
   type: 'income' | 'expense';
   category: TransactionCategory;
   amount: number;
-  paymentMode: 'Cash' | 'Bank' | 'UPI' | 'Pending';
+  paymentMode: 'Cash' | 'Bank' | 'UPI' | 'Pending' | 'Check' | 'Online';
   description: string;
   evidence?: string; // Base64 data URL
   evidenceName?: string; // Name of file
   wasPending?: boolean; // Cleared from pending status flag
   tripId?: string; // Originating trip ID if synced from trip module
+  // Freight / Excel-grid specific fields
+  from?: string;
+  to?: string;
+  weight?: number;
+  rate?: number;
+  material?: string;
+  paymentStatus?: 'Pending' | 'Partial' | 'Paid';
+  payments?: Payment[];
+  _id?: string;
+  createdAt?: string;
+  partyName?: string;
 }
 
 export interface VehicleSummary {

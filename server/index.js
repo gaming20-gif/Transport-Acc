@@ -116,10 +116,59 @@ app.get('/api/transactions', async (req, res) => {
 
 app.post('/api/transactions', async (req, res) => {
   try {
-    const newTransaction = new Transaction(req.body);
+    const paymentStatus = req.body.paymentMode === 'Pending' ? 'Pending' : 'Paid';
+    const newTransaction = new Transaction({
+      ...req.body,
+      paymentStatus
+    });
     const savedTransaction = await newTransaction.save();
     res.json(savedTransaction);
   } catch (error) {
+    console.error('Transaction Save Error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/transactions/:id/payments', async (req, res) => {
+  try {
+    const tx = await Transaction.findOne({ id: req.params.id });
+    if (!tx) {
+      return res.status(404).json({ error: 'Transaction not found' });
+    }
+
+    const { date, amount, paymentMode, description } = req.body;
+    const paymentAmount = Number(amount);
+
+    if (isNaN(paymentAmount) || paymentAmount <= 0) {
+      return res.status(400).json({ error: 'Invalid payment amount' });
+    }
+
+    // Add payment to array
+    const paymentId = Math.random().toString(36).substring(2, 9);
+    tx.payments.push({
+      id: paymentId,
+      date,
+      amount: paymentAmount,
+      paymentMode,
+      description: description || ''
+    });
+
+    // Recalculate status and balance
+    const totalPaid = tx.payments.reduce((sum, p) => sum + p.amount, 0);
+    const balance = tx.amount - totalPaid;
+
+    if (balance <= 0) {
+      tx.paymentStatus = 'Paid';
+      tx.paymentMode = paymentMode; // Set overall payment mode to final clearing mode
+    } else {
+      tx.paymentStatus = 'Partial';
+      tx.paymentMode = 'Pending';
+    }
+
+    const savedTx = await tx.save();
+    res.json(savedTx);
+  } catch (error) {
+    console.error('Payment Error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
@@ -169,6 +218,24 @@ app.post('/api/sync', async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
+});
+
+app.delete('/api/clear', async (req, res) => {
+  try {
+    await Vehicle.deleteMany({});
+    await Trip.deleteMany({});
+    await Transaction.deleteMany({});
+    res.json({ message: 'All database records cleared successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+const path = require('path');
+// Serve static frontend files
+app.use(express.static(path.join(__dirname, '../dist')));
+app.use((req, res) => {
+  res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
 app.listen(PORT, () => {

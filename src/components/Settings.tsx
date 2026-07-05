@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Download, Upload, RotateCcw, Trash2, CheckCircle2, AlertTriangle } from 'lucide-react';
-import { exportData, importData, initSampleData } from '../utils/storage';
+import { exportData, importData, initSampleData, clearAllData } from '../utils/storage';
 
 interface SettingsProps {
   refreshData: () => void;
@@ -79,12 +79,13 @@ export const Settings: React.FC<SettingsProps> = ({ refreshData }) => {
     }
   };
 
-  const handleClearAll = () => {
+  const handleClearAll = async () => {
     const confirmed = window.confirm('WARNING: Are you sure you want to permanently erase ALL data? This will clear all vehicles and ledger records. This action CANNOT be undone.');
     if (confirmed) {
-      localStorage.clear();
+      await clearAllData();
+      localStorage.clear(); // Clear legacy local storage too just in case
       refreshData();
-      showNotification('All local data cleared successfully.', false);
+      showNotification('All database records cleared successfully.', false);
     }
   };
 
@@ -92,7 +93,7 @@ export const Settings: React.FC<SettingsProps> = ({ refreshData }) => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <div className="page-header">
         <div className="page-title-group">
-          <h1>Settings</h1>
+          <h1>System Settings</h1>
           <p className="page-subtitle">Manage accounts database, perform manual backups, restore registries, or clear system storage.</p>
         </div>
       </div>

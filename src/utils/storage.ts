@@ -1,6 +1,6 @@
 import type { Vehicle, Transaction, VehicleSummary, Trip } from '../types';
 
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = '/api';
 
 // Help generate unique IDs for local use before sending, though MongoDB will also give _id
 const generateId = () => Math.random().toString(36).substring(2, 9);
@@ -65,7 +65,21 @@ export const getTransactions = async (): Promise<Transaction[]> => {
   try {
     const res = await fetch(`${API_BASE}/transactions`);
     const data = await res.json();
-    return data.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return data.sort((a: any, b: any) => {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      if (dateA !== dateB) {
+        return dateA - dateB; // Chronological ascending: oldest first
+      }
+      // Tie-breaker: insertion time ascending
+      if (a.createdAt && b.createdAt) {
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      }
+      if (a._id && b._id) {
+        return a._id.localeCompare(b._id);
+      }
+      return 0;
+    });
   } catch (e) {
     console.error('Error fetching transactions', e);
     return [];
@@ -86,6 +100,23 @@ export const addTransaction = async (transData: Omit<Transaction, 'id'>): Promis
     return await res.json();
   } catch (e) {
     console.error('Error adding transaction', e);
+    return null;
+  }
+};
+
+export const addTransactionPayment = async (
+  transId: string,
+  paymentData: { date: string; amount: number; paymentMode: string; description: string }
+): Promise<Transaction | null> => {
+  try {
+    const res = await fetch(`${API_BASE}/transactions/${transId}/payments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(paymentData)
+    });
+    return await res.json();
+  } catch (e) {
+    console.error('Error adding transaction payment', e);
     return null;
   }
 };
@@ -246,7 +277,11 @@ export const syncTripTransactions = async (trip: Trip): Promise<void> => {
       amount: trip.advanceReceived,
       paymentMode: trip.paymentMode,
       description: `Advance for Trip ${trip.tripNumber} (${trip.fromLocation} to ${trip.toLocation})`,
-      tripId: trip.id
+      tripId: trip.id,
+      from: trip.fromLocation,
+      to: trip.toLocation,
+      weight: trip.ton,
+      rate: trip.ratePerTon
     });
   }
 
@@ -332,4 +367,14 @@ export const importData = async (jsonData: string): Promise<boolean> => {
 export const initSampleData = async (): Promise<void> => {
   // Not used in API mode since MongoDB acts as the true source
   // We can add logic to seed MongoDB here if needed.
+};
+
+export const clearAllData = async (): Promise<boolean> => {
+  try {
+    const res = await fetch(`${API_BASE}/clear`, { method: 'DELETE' });
+    return res.ok;
+  } catch (e) {
+    console.error('Error clearing data', e);
+    return false;
+  }
 };
