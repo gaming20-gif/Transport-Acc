@@ -9,6 +9,7 @@ const tripExpenseSchema = new mongoose.Schema({
 });
 
 const tripSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   id: { type: String, required: true, unique: true },
   tripNumber: { type: String, required: true },
   date: { type: String, required: true },

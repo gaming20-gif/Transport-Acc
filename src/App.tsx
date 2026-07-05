@@ -3,16 +3,19 @@ import {
   LayoutDashboard, 
   Truck, 
   FileBarChart2, 
-  ClipboardList
+  ClipboardList,
+  LogOut,
+  User as UserIcon
 } from 'lucide-react';
-import type { Vehicle, Transaction } from './types';
-import { getVehicles, getTransactions, initSampleData, importData } from './utils/storage';
+import type { Vehicle, Transaction, User } from './types';
+import { getVehicles, getTransactions, initSampleData, importData, getMe } from './utils/storage';
 import { Dashboard } from './components/Dashboard';
 import { Vehicles } from './components/Vehicles';
 import { Ledger } from './components/Ledger';
 import { Reports } from './components/Reports';
 import { Trips } from './components/Trips';
 import { Pending } from './components/Pending';
+import { Auth } from './components/Auth';
 
 function App() {
   const [activeTab, setActiveTab] = useState<string>('dashboard');
@@ -20,23 +23,46 @@ function App() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => (localStorage.getItem('theme') as 'light' | 'dark') || 'light');
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState<boolean>(true);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  // Initialize data on mount
+  // Auth check on mount
   useEffect(() => {
-    const runAutoMigrate = async () => {
+    const checkAuth = async () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const user = await getMe();
+          setCurrentUser(user);
+        } catch (e) {
+          console.error("Token invalid, logging out", e);
+          localStorage.removeItem('token');
+          setCurrentUser(null);
+        }
+      }
+      setAuthLoading(false);
+    };
+    checkAuth();
+  }, []);
+
+  // Fetch data and auto-migrate when currentUser changes
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const initAndLoad = async () => {
       try {
         const localVehicles = localStorage.getItem('transport_acc_vehicles');
         const localTransactions = localStorage.getItem('transport_acc_transactions');
         const localTrips = localStorage.getItem('transport_acc_trips');
 
-        if (localVehicles && localVehicles !== '[]' || 
-            localTransactions && localTransactions !== '[]' || 
-            localTrips && localTrips !== '[]') {
+        if ((localVehicles && localVehicles !== '[]') || 
+            (localTransactions && localTransactions !== '[]') || 
+            (localTrips && localTrips !== '[]')) {
           
           console.log("Auto-migrating legacy local storage data to MongoDB backend...");
           
@@ -62,15 +88,27 @@ function App() {
       await initSampleData();
       await refreshData();
     };
-    
-    runAutoMigrate();
-  }, []);
+
+    initAndLoad();
+  }, [currentUser]);
 
   const refreshData = async () => {
     const v = await getVehicles();
     const t = await getTransactions();
     setVehicles(v);
     setTransactions(t);
+  };
+
+  const handleLoginSuccess = (user: User, token: string) => {
+    localStorage.setItem('token', token);
+    setCurrentUser(user);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    setCurrentUser(null);
+    setVehicles([]);
+    setTransactions([]);
   };
 
 
@@ -138,6 +176,41 @@ function App() {
   const pendingCount = transactions.filter(t => 
     t.paymentStatus === 'Pending' || t.paymentStatus === 'Partial' || (!t.paymentStatus && t.paymentMode === 'Pending')
   ).length;
+
+  if (authLoading) {
+    return (
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '100vh',
+        backgroundColor: 'var(--bg-main)',
+        color: 'var(--text-primary)',
+        fontFamily: 'var(--font-sans)',
+        gap: '16px'
+      }}>
+        <div className="spinner" style={{
+          width: '40px',
+          height: '40px',
+          border: '4px solid var(--border-color)',
+          borderTopColor: 'var(--accent-primary)',
+          borderRadius: '50%',
+          animation: 'spin 1s linear infinite'
+        }}></div>
+        <style>{`
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
+        <span style={{ fontWeight: 600 }}>Loading TransAccount...</span>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return <Auth onLoginSuccess={handleLoginSuccess} />;
+  }
 
   return (
     <div className="app-container">
@@ -211,12 +284,37 @@ function App() {
 
         </ul>
 
-        <div className="top-navbar-footer">
+        <div className="top-navbar-footer" style={{ gap: '12px', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '12px', width: '100%' }}>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-navbar-secondary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <UserIcon size={14} />
+              {currentUser.username}
+            </span>
+            <button
+              onClick={handleLogout}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                border: 'none',
+                background: 'transparent',
+                color: 'var(--color-danger)',
+                cursor: 'pointer',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                padding: 0,
+                textAlign: 'left'
+              }}
+            >
+              <LogOut size={14} />
+              Logout
+            </button>
+          </div>
           <button 
             type="button"
             onClick={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')}
             style={{
-              padding: '4px 10px',
+              padding: '6px 10px',
               fontSize: '0.75rem',
               borderRadius: '20px',
               border: '1px solid rgba(255, 255, 255, 0.15)',
@@ -225,12 +323,14 @@ function App() {
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '6px'
+              gap: '6px',
+              justifyContent: 'center',
+              width: '100%'
             }}
           >
             {theme === 'light' ? '🌙 Dark' : '☀️ Light'}
           </button>
-          <span>v1.0.0 (Local)</span>
+          <span style={{ display: 'block', textAlign: 'center', width: '100%', fontSize: '0.75rem', color: 'var(--text-navbar-secondary)' }}>v1.0.0 (Local)</span>
         </div>
       </nav>
 

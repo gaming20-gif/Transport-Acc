@@ -9,6 +9,7 @@ const paymentSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 const transactionSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   id: { type: String, required: true, unique: true },
   vehicleId: { type: String, required: true },
   date: { type: String, required: true },

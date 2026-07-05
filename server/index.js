@@ -2,14 +2,19 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 const Vehicle = require('./models/Vehicle');
 const Trip = require('./models/Trip');
 const Transaction = require('./models/Transaction');
+const User = require('./models/User');
+const auth = require('./middleware/auth');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/transport';
+const JWT_SECRET = process.env.JWT_SECRET || 'transport-app-super-secret-key-9988';
 
 // Middleware
 // Increase limit for base64 images (evidence)
@@ -23,20 +28,111 @@ mongoose.connect(MONGO_URI)
 .catch(err => console.error('MongoDB connection error:', err));
 
 // =======================
+// AUTH ROUTES
+// =======================
+app.post('/api/auth/signup', async (req, res) => {
+  try {
+    const { username, email, password } = req.body;
+    if (!username || !email || !password) {
+      return res.status(400).json({ error: 'Please enter all fields' });
+    }
+
+    // Check if user exists
+    let user = await User.findOne({ $or: [{ email: email.toLowerCase() }, { username }] });
+    if (user) {
+      return res.status(400).json({ error: 'User already exists with this email or username' });
+    }
+
+    // Create new user
+    user = new User({ username, email: email.toLowerCase(), password });
+
+    // Hash password
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(password, salt);
+
+    await user.save();
+
+    // Data migration: associate any existing unowned records with the first user who registers
+    await Vehicle.updateMany({ userId: { $exists: false } }, { $set: { userId: user._id } });
+    await Trip.updateMany({ userId: { $exists: false } }, { $set: { userId: user._id } });
+    await Transaction.updateMany({ userId: { $exists: false } }, { $set: { userId: user._id } });
+
+    // Create JWT
+    const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({
+      token,
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Please enter all fields' });
+    }
+
+    // Check for user
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      return res.status(400).json({ error: 'Invalid credentials' });
+    }
+
+    // Validate password
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ error: 'Invalid credentials' });
+    }
+
+    // Create JWT
+    const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({
+      token,
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/auth/me', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('-password');
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// =======================
 // VEHICLE ROUTES
 // =======================
-app.get('/api/vehicles', async (req, res) => {
+app.get('/api/vehicles', auth, async (req, res) => {
   try {
-    const vehicles = await Vehicle.find();
+    const vehicles = await Vehicle.find({ userId: req.user.id });
     res.json(vehicles);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.post('/api/vehicles', async (req, res) => {
+app.post('/api/vehicles', auth, async (req, res) => {
   try {
-    const newVehicle = new Vehicle(req.body);
+    const newVehicle = new Vehicle({
+      ...req.body,
+      userId: req.user.id
+    });
     const savedVehicle = await newVehicle.save();
     res.json(savedVehicle);
   } catch (error) {
@@ -44,18 +140,22 @@ app.post('/api/vehicles', async (req, res) => {
   }
 });
 
-app.put('/api/vehicles/:id', async (req, res) => {
+app.put('/api/vehicles/:id', auth, async (req, res) => {
   try {
-    const updatedVehicle = await Vehicle.findOneAndUpdate({ id: req.params.id }, req.body, { new: true });
+    const updatedVehicle = await Vehicle.findOneAndUpdate(
+      { id: req.params.id, userId: req.user.id },
+      req.body,
+      { new: true }
+    );
     res.json(updatedVehicle);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.delete('/api/vehicles/:id', async (req, res) => {
+app.delete('/api/vehicles/:id', auth, async (req, res) => {
   try {
-    await Vehicle.findOneAndDelete({ id: req.params.id });
+    await Vehicle.findOneAndDelete({ id: req.params.id, userId: req.user.id });
     res.json({ message: 'Vehicle deleted' });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -65,18 +165,21 @@ app.delete('/api/vehicles/:id', async (req, res) => {
 // =======================
 // TRIP ROUTES
 // =======================
-app.get('/api/trips', async (req, res) => {
+app.get('/api/trips', auth, async (req, res) => {
   try {
-    const trips = await Trip.find();
+    const trips = await Trip.find({ userId: req.user.id });
     res.json(trips);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.post('/api/trips', async (req, res) => {
+app.post('/api/trips', auth, async (req, res) => {
   try {
-    const newTrip = new Trip(req.body);
+    const newTrip = new Trip({
+      ...req.body,
+      userId: req.user.id
+    });
     const savedTrip = await newTrip.save();
     res.json(savedTrip);
   } catch (error) {
@@ -84,18 +187,22 @@ app.post('/api/trips', async (req, res) => {
   }
 });
 
-app.put('/api/trips/:id', async (req, res) => {
+app.put('/api/trips/:id', auth, async (req, res) => {
   try {
-    const updatedTrip = await Trip.findOneAndUpdate({ id: req.params.id }, req.body, { new: true });
+    const updatedTrip = await Trip.findOneAndUpdate(
+      { id: req.params.id, userId: req.user.id },
+      req.body,
+      { new: true }
+    );
     res.json(updatedTrip);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.delete('/api/trips/:id', async (req, res) => {
+app.delete('/api/trips/:id', auth, async (req, res) => {
   try {
-    await Trip.findOneAndDelete({ id: req.params.id });
+    await Trip.findOneAndDelete({ id: req.params.id, userId: req.user.id });
     res.json({ message: 'Trip deleted' });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -105,20 +212,21 @@ app.delete('/api/trips/:id', async (req, res) => {
 // =======================
 // TRANSACTION ROUTES
 // =======================
-app.get('/api/transactions', async (req, res) => {
+app.get('/api/transactions', auth, async (req, res) => {
   try {
-    const transactions = await Transaction.find();
+    const transactions = await Transaction.find({ userId: req.user.id });
     res.json(transactions);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.post('/api/transactions', async (req, res) => {
+app.post('/api/transactions', auth, async (req, res) => {
   try {
     const paymentStatus = req.body.paymentMode === 'Pending' ? 'Pending' : 'Paid';
     const newTransaction = new Transaction({
       ...req.body,
+      userId: req.user.id,
       paymentStatus
     });
     const savedTransaction = await newTransaction.save();
@@ -129,9 +237,9 @@ app.post('/api/transactions', async (req, res) => {
   }
 });
 
-app.post('/api/transactions/:id/payments', async (req, res) => {
+app.post('/api/transactions/:id/payments', auth, async (req, res) => {
   try {
-    const tx = await Transaction.findOne({ id: req.params.id });
+    const tx = await Transaction.findOne({ id: req.params.id, userId: req.user.id });
     if (!tx) {
       return res.status(404).json({ error: 'Transaction not found' });
     }
@@ -173,18 +281,22 @@ app.post('/api/transactions/:id/payments', async (req, res) => {
   }
 });
 
-app.put('/api/transactions/:id', async (req, res) => {
+app.put('/api/transactions/:id', auth, async (req, res) => {
   try {
-    const updatedTransaction = await Transaction.findOneAndUpdate({ id: req.params.id }, req.body, { new: true });
+    const updatedTransaction = await Transaction.findOneAndUpdate(
+      { id: req.params.id, userId: req.user.id },
+      req.body,
+      { new: true }
+    );
     res.json(updatedTransaction);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.delete('/api/transactions/:id', async (req, res) => {
+app.delete('/api/transactions/:id', auth, async (req, res) => {
   try {
-    await Transaction.findOneAndDelete({ id: req.params.id });
+    await Transaction.findOneAndDelete({ id: req.params.id, userId: req.user.id });
     res.json({ message: 'Transaction deleted' });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -194,24 +306,26 @@ app.delete('/api/transactions/:id', async (req, res) => {
 // =======================
 // BULK SYNC ROUTES
 // =======================
-app.post('/api/sync', async (req, res) => {
+app.post('/api/sync', auth, async (req, res) => {
   try {
     const { vehicles, trips, transactions } = req.body;
     
-    // Using bulkWrite or simple loop
     if (vehicles && vehicles.length > 0) {
-      await Vehicle.deleteMany({});
-      await Vehicle.insertMany(vehicles);
+      await Vehicle.deleteMany({ userId: req.user.id });
+      const vehiclesWithUser = vehicles.map(v => ({ ...v, userId: req.user.id }));
+      await Vehicle.insertMany(vehiclesWithUser);
     }
     
     if (trips && trips.length > 0) {
-      await Trip.deleteMany({});
-      await Trip.insertMany(trips);
+      await Trip.deleteMany({ userId: req.user.id });
+      const tripsWithUser = trips.map(t => ({ ...t, userId: req.user.id }));
+      await Trip.insertMany(tripsWithUser);
     }
     
     if (transactions && transactions.length > 0) {
-      await Transaction.deleteMany({});
-      await Transaction.insertMany(transactions);
+      await Transaction.deleteMany({ userId: req.user.id });
+      const transactionsWithUser = transactions.map(t => ({ ...t, userId: req.user.id }));
+      await Transaction.insertMany(transactionsWithUser);
     }
     
     res.json({ message: 'Data synced successfully' });
@@ -220,11 +334,11 @@ app.post('/api/sync', async (req, res) => {
   }
 });
 
-app.delete('/api/clear', async (req, res) => {
+app.delete('/api/clear', auth, async (req, res) => {
   try {
-    await Vehicle.deleteMany({});
-    await Trip.deleteMany({});
-    await Transaction.deleteMany({});
+    await Vehicle.deleteMany({ userId: req.user.id });
+    await Trip.deleteMany({ userId: req.user.id });
+    await Transaction.deleteMany({ userId: req.user.id });
     res.json({ message: 'All database records cleared successfully' });
   } catch (error) {
     res.status(500).json({ error: error.message });
