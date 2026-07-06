@@ -46,17 +46,6 @@ app.use(async (req, res, next) => {
   next();
 });
 
-// Mask password in MongoDB URI for logging
-const maskedURI = MONGO_URI.replace(/:([^@:]+)@/, ':****@');
-console.log(`Connecting to MongoDB at: ${maskedURI}`);
-
-// Connect to MongoDB
-mongoose.connect(MONGO_URI)
-.then(() => console.log('MongoDB connected successfully'))
-.catch(err => {
-  console.error('MongoDB connection error details:', err.message);
-  console.error(err);
-});
 
 // =======================
 // DIAGNOSTIC ROUTES
@@ -437,7 +426,13 @@ const isMain = process.argv[1] && (
 );
 
 if (isMain) {
-  app.listen(PORT, () => {
+  app.listen(PORT, async () => {
     console.log(`Server is running on port ${PORT}`);
+    try {
+      await connectDB();
+      console.log('MongoDB connected successfully');
+    } catch (err) {
+      console.error('MongoDB connection error details:', err.message);
+    }
   });
 }
