@@ -35,6 +35,34 @@ mongoose.connect(MONGO_URI)
 });
 
 // =======================
+// DIAGNOSTIC ROUTES
+// =======================
+app.get('/api/db-check', async (req, res) => {
+  try {
+    const states = {
+      0: 'disconnected',
+      1: 'connected',
+      2: 'connecting',
+      3: 'disconnecting'
+    };
+    const readyState = mongoose.connection.readyState;
+    
+    // Mask password in URI
+    const maskedURI = MONGO_URI.replace(/:([^@:]+)@/, ':****@');
+    
+    res.json({
+      envLoaded: !!(process.env.MONGO_URI || process.env.MONGO_URL),
+      envVarNameUsed: process.env.MONGO_URI ? 'MONGO_URI' : (process.env.MONGO_URL ? 'MONGO_URL' : 'none'),
+      maskedURI,
+      connectionState: states[readyState] || 'unknown',
+      mongooseConnected: readyState === 1
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// =======================
 // AUTH ROUTES
 // =======================
 app.post('/api/auth/signup', async (req, res) => {
