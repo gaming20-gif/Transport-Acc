@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AlertCircle, Eye, EyeOff, Lock, Mail, User } from 'lucide-react';
+import { AlertCircle, Eye, EyeOff, Mail, User } from 'lucide-react';
 import { loginUser, signupUser } from '../utils/storage';
 import type { User as UserType } from '../types';
 
