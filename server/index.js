@@ -100,23 +100,21 @@ app.get('/api/db-check', async (req, res) => {
 // =======================
 app.post('/api/auth/signup', async (req, res) => {
   try {
+    console.log("Step 1: Signup API called");
+
     const { username, email, password } = req.body;
+    console.log("Step 2: Request body received");
 
     if (!username || !email || !password) {
       return res.status(400).json({ error: 'Please enter all fields' });
     }
 
-    if (!JWT_SECRET) {
-      throw new Error('JWT_SECRET is not defined');
-    }
-
-    // Check if user exists
+    console.log("Step 3: Checking existing user");
     let user = await User.findOne({
-      $or: [
-        { email: email.toLowerCase() },
-        { username }
-      ]
+      $or: [{ email: email.toLowerCase() }, { username }]
     });
+
+    console.log("Step 4: User check complete");
 
     if (user) {
       return res.status(400).json({
@@ -124,59 +122,30 @@ app.post('/api/auth/signup', async (req, res) => {
       });
     }
 
-    // Hash password
+    console.log("Step 5: Hashing password");
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Create user
+    console.log("Step 6: Creating user");
     user = new User({
       username,
       email: email.toLowerCase(),
       password: hashedPassword
     });
 
+    console.log("Step 7: Saving user");
     await user.save();
 
-    // Data migration
-    await Vehicle.updateMany(
-      { userId: { $exists: false } },
-      { $set: { userId: user._id } }
-    );
+    console.log("Step 8: User saved successfully");
 
-    await Trip.updateMany(
-      { userId: { $exists: false } },
-      { $set: { userId: user._id } }
-    );
-
-    await Transaction.updateMany(
-      { userId: { $exists: false } },
-      { $set: { userId: user._id } }
-    );
-
-    const token = jwt.sign(
-      { id: user._id },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    return res.status(201).json({
-      token,
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email
-      }
+    return res.json({
+      message: "Signup successful"
     });
 
   } catch (error) {
-    console.error("========== SIGNUP ERROR ==========");
-    console.error(error);
-    console.error(error.stack);
-    console.error("==================================");
-
+    console.error("Signup Error:", error);
     return res.status(500).json({
-      success: false,
-      message: error.message
+      error: error.message
     });
   }
 });
