@@ -101,33 +101,65 @@ app.get('/api/db-check', async (req, res) => {
 app.post('/api/auth/signup', async (req, res) => {
   try {
     const { username, email, password } = req.body;
+
     if (!username || !email || !password) {
       return res.status(400).json({ error: 'Please enter all fields' });
     }
 
-    // Check if user exists
-    let user = await User.findOne({ $or: [{ email: email.toLowerCase() }, { username }] });
-    if (user) {
-      return res.status(400).json({ error: 'User already exists with this email or username' });
+    if (!JWT_SECRET) {
+      throw new Error('JWT_SECRET is not defined');
     }
 
-    // Create new user
-    user = new User({ username, email: email.toLowerCase(), password });
+    // Check if user exists
+    let user = await User.findOne({
+      $or: [
+        { email: email.toLowerCase() },
+        { username }
+      ]
+    });
+
+    if (user) {
+      return res.status(400).json({
+        error: 'User already exists with this email or username'
+      });
+    }
 
     // Hash password
     const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(password, salt);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // Create user
+    user = new User({
+      username,
+      email: email.toLowerCase(),
+      password: hashedPassword
+    });
 
     await user.save();
 
-    // Data migration: associate any existing unowned records with the first user who registers
-    await Vehicle.updateMany({ userId: { $exists: false } }, { $set: { userId: user._id } });
-    await Trip.updateMany({ userId: { $exists: false } }, { $set: { userId: user._id } });
-    await Transaction.updateMany({ userId: { $exists: false } }, { $set: { userId: user._id } });
+    // Data migration
+    await Vehicle.updateMany(
+      { userId: { $exists: false } },
+      { $set: { userId: user._id } }
+    );
 
-    // Create JWT
-    const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({
+    await Trip.updateMany(
+      { userId: { $exists: false } },
+      { $set: { userId: user._id } }
+    );
+
+    await Transaction.updateMany(
+      { userId: { $exists: false } },
+      { $set: { userId: user._id } }
+    );
+
+    const token = jwt.sign(
+      { id: user._id },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    return res.status(201).json({
       token,
       user: {
         id: user._id,
@@ -135,8 +167,17 @@ app.post('/api/auth/signup', async (req, res) => {
         email: user.email
       }
     });
+
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("========== SIGNUP ERROR ==========");
+    console.error(error);
+    console.error(error.stack);
+    console.error("==================================");
+
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    });
   }
 });
 
