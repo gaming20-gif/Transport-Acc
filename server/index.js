@@ -1,15 +1,15 @@
-require('dotenv').config();
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
+import 'dotenv/config';
+import express from 'express';
+import mongoose from 'mongoose';
+import cors from 'cors';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 
-const Vehicle = require('./models/Vehicle');
-const Trip = require('./models/Trip');
-const Transaction = require('./models/Transaction');
-const User = require('./models/User');
-const auth = require('./middleware/auth');
+import Vehicle from './models/Vehicle.js';
+import Trip from './models/Trip.js';
+import Transaction from './models/Transaction.js';
+import User from './models/User.js';
+import auth from './middleware/auth.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -345,16 +345,26 @@ app.delete('/api/clear', auth, async (req, res) => {
   }
 });
 
-const path = require('path');
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 // Serve static frontend files
 app.use(express.static(path.join(__dirname, '../dist')));
 app.use((req, res) => {
   res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
-module.exports = app;
+export default app;
 
-if (require.main === module) {
+const isMain = process.argv[1] && (
+  path.resolve(process.argv[1]) === path.resolve(__filename) || 
+  path.resolve(process.argv[1]) === path.resolve(path.join(__dirname, 'index.js'))
+);
+
+if (isMain) {
   app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
   });

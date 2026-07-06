@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const paymentSchema = new mongoose.Schema({
   id: { type: String, required: true },
@@ -34,4 +34,5 @@ const transactionSchema = new mongoose.Schema({
 
 transactionSchema.index({ userId: 1, id: 1 }, { unique: true });
 
-module.exports = mongoose.model('Transaction', transactionSchema);
+const Transaction = mongoose.model('Transaction', transactionSchema);
+export default Transaction;
