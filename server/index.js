@@ -13,7 +13,7 @@ import auth from './middleware/auth.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/transport';
+const MONGO_URI = process.env.MONGO_URI || process.env.MONGO_URL || 'mongodb://127.0.0.1:27017/transport';
 const JWT_SECRET = process.env.JWT_SECRET || 'transport-app-super-secret-key-9988';
 
 // Middleware
@@ -22,10 +22,17 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(cors());
 
+// Mask password in MongoDB URI for logging
+const maskedURI = MONGO_URI.replace(/:([^@:]+)@/, ':****@');
+console.log(`Connecting to MongoDB at: ${maskedURI}`);
+
 // Connect to MongoDB
 mongoose.connect(MONGO_URI)
 .then(() => console.log('MongoDB connected successfully'))
-.catch(err => console.error('MongoDB connection error:', err));
+.catch(err => {
+  console.error('MongoDB connection error details:', err.message);
+  console.error(err);
+});
 
 // =======================
 // AUTH ROUTES
