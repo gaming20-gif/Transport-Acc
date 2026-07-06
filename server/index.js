@@ -34,6 +34,18 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(cors());
 
+// Ensure Database is connected (especially important for Vercel serverless environment)
+app.use(async (req, res, next) => {
+  if (req.path.startsWith('/api')) {
+    try {
+      await connectDB();
+    } catch (err) {
+      return res.status(500).json({ error: `Database connection error: ${err.message}` });
+    }
+  }
+  next();
+});
+
 // Mask password in MongoDB URI for logging
 const maskedURI = MONGO_URI.replace(/:([^@:]+)@/, ':****@');
 console.log(`Connecting to MongoDB at: ${maskedURI}`);
