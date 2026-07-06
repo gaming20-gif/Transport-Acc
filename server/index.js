@@ -1,4 +1,15 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load environment variables from root .env.local, server .env, or root .env
+dotenv.config({ path: path.resolve(__dirname, '../.env.local') });
+dotenv.config({ path: path.resolve(__dirname, '.env') });
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
+
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
@@ -10,10 +21,11 @@ import Trip from './models/Trip.js';
 import Transaction from './models/Transaction.js';
 import User from './models/User.js';
 import auth from './middleware/auth.js';
+import connectDB from '../lib/mongodb.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const MONGO_URI = process.env.MONGO_URI || process.env.MONGO_URL || 'mongodb://127.0.0.1:27017/transport';
+const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI || process.env.MONGO_URL || 'mongodb://127.0.0.1:27017/transport';
 const JWT_SECRET = process.env.JWT_SECRET || 'transport-app-super-secret-key-9988';
 
 // Middleware
@@ -37,6 +49,15 @@ mongoose.connect(MONGO_URI)
 // =======================
 // DIAGNOSTIC ROUTES
 // =======================
+app.get('/api/test', async (req, res) => {
+  try {
+    await connectDB();
+    res.status(200).json({ message: "MongoDB Connected Successfully 🚀" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/db-check', async (req, res) => {
   try {
     const states = {
@@ -51,8 +72,8 @@ app.get('/api/db-check', async (req, res) => {
     const maskedURI = MONGO_URI.replace(/:([^@:]+)@/, ':****@');
     
     res.json({
-      envLoaded: !!(process.env.MONGO_URI || process.env.MONGO_URL),
-      envVarNameUsed: process.env.MONGO_URI ? 'MONGO_URI' : (process.env.MONGO_URL ? 'MONGO_URL' : 'none'),
+      envLoaded: !!(process.env.MONGO_URI || process.env.MONGODB_URI || process.env.MONGO_URL),
+      envVarNameUsed: process.env.MONGO_URI ? 'MONGO_URI' : (process.env.MONGODB_URI ? 'MONGODB_URI' : (process.env.MONGO_URL ? 'MONGO_URL' : 'none')),
       maskedURI,
       connectionState: states[readyState] || 'unknown',
       mongooseConnected: readyState === 1
@@ -379,12 +400,6 @@ app.delete('/api/clear', auth, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // Serve static frontend files
 app.use(express.static(path.join(__dirname, '../dist')));
