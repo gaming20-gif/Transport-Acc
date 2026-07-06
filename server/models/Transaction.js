@@ -10,7 +10,7 @@ const paymentSchema = new mongoose.Schema({
 
 const transactionSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  id: { type: String, required: true, unique: true },
+  id: { type: String, required: true },
   vehicleId: { type: String, required: true },
   date: { type: String, required: true },
   type: { type: String, enum: ['income', 'expense'], required: true },
@@ -31,5 +31,7 @@ const transactionSchema = new mongoose.Schema({
   paymentStatus: { type: String, enum: ['Pending', 'Partial', 'Paid'], default: 'Paid' },
   payments: { type: [paymentSchema], default: [] }
 }, { timestamps: true });
+
+transactionSchema.index({ userId: 1, id: 1 }, { unique: true });
 
 module.exports = mongoose.model('Transaction', transactionSchema);

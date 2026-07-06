@@ -10,7 +10,7 @@ const tripExpenseSchema = new mongoose.Schema({
 
 const tripSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  id: { type: String, required: true, unique: true },
+  id: { type: String, required: true },
   tripNumber: { type: String, required: true },
   date: { type: String, required: true },
   vehicleId: { type: String, required: true },
@@ -43,5 +43,7 @@ const tripSchema = new mongoose.Schema({
   evidence: { type: String },
   evidenceName: { type: String }
 });
+
+tripSchema.index({ userId: 1, id: 1 }, { unique: true });
 
 module.exports = mongoose.model('Trip', tripSchema);
