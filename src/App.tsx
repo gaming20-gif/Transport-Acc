@@ -5,7 +5,9 @@ import {
   FileBarChart2, 
   ClipboardList,
   LogOut,
-  User as UserIcon
+  ChevronDown,
+  Sun,
+  Moon
 } from 'lucide-react';
 import type { Vehicle, Transaction, User } from './types';
 import { getVehicles, getTransactions, initSampleData, importData, getMe } from './utils/storage';
@@ -25,6 +27,19 @@ function App() {
   const [theme, setTheme] = useState<'light' | 'dark'>(() => (localStorage.getItem('theme') as 'light' | 'dark') || 'light');
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState<boolean>(true);
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState<boolean>(false);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    if (!profileDropdownOpen) return;
+    const handleOutsideClick = () => {
+      setProfileDropdownOpen(false);
+    };
+    document.addEventListener('click', handleOutsideClick);
+    return () => {
+      document.removeEventListener('click', handleOutsideClick);
+    };
+  }, [profileDropdownOpen]);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -284,53 +299,64 @@ function App() {
 
         </ul>
 
-        <div className="top-navbar-footer" style={{ gap: '12px', flexDirection: 'column' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '12px', width: '100%' }}>
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-navbar-secondary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <UserIcon size={14} />
-              {currentUser.username}
-            </span>
-            <button
-              onClick={handleLogout}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                border: 'none',
-                background: 'transparent',
-                color: 'var(--color-danger)',
-                cursor: 'pointer',
-                fontSize: '0.85rem',
-                fontWeight: 600,
-                padding: 0,
-                textAlign: 'left'
-              }}
-            >
-              <LogOut size={14} />
-              Logout
-            </button>
-          </div>
+        <div className="top-navbar-user-section">
           <button 
             type="button"
-            onClick={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')}
-            style={{
-              padding: '6px 10px',
-              fontSize: '0.75rem',
-              borderRadius: '20px',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              backgroundColor: 'rgba(255, 255, 255, 0.05)',
-              color: 'var(--text-navbar-primary)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              justifyContent: 'center',
-              width: '100%'
+            className={`profile-trigger-btn ${profileDropdownOpen ? 'active' : ''}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              setProfileDropdownOpen(prev => !prev);
             }}
+            aria-haspopup="true"
+            aria-expanded={profileDropdownOpen}
           >
-            {theme === 'light' ? '🌙 Dark' : '☀️ Light'}
+            <div className="user-avatar">
+              {currentUser.username ? currentUser.username[0].toUpperCase() : 'U'}
+            </div>
+            <span className="profile-username">{currentUser.username}</span>
+            <ChevronDown size={14} className="profile-chevron" />
           </button>
-          <span style={{ display: 'block', textAlign: 'center', width: '100%', fontSize: '0.75rem', color: 'var(--text-navbar-secondary)' }}>v1.0.0 (Local)</span>
+
+          {profileDropdownOpen && (
+            <div className="profile-dropdown-menu" onClick={(e) => e.stopPropagation()}>
+              <div className="dropdown-user-info">
+                <span className="dropdown-user-label">Signed in as</span>
+                <span className="dropdown-user-name">{currentUser.username}</span>
+              </div>
+              
+              <button 
+                type="button"
+                className="dropdown-item"
+                onClick={() => {
+                  setTheme(prev => prev === 'light' ? 'dark' : 'light');
+                  setProfileDropdownOpen(false);
+                }}
+              >
+                {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
+                <span>{theme === 'light' ? 'Dark Mode' : 'Light Mode'}</span>
+              </button>
+
+              <div className="dropdown-divider"></div>
+
+              <button
+                type="button"
+                className="dropdown-item dropdown-item-danger"
+                onClick={() => {
+                  handleLogout();
+                  setProfileDropdownOpen(false);
+                }}
+              >
+                <LogOut size={16} />
+                <span>Logout</span>
+              </button>
+
+              <div className="dropdown-divider"></div>
+              
+              <div className="dropdown-footer">
+                v1.0.0 (Local)
+              </div>
+            </div>
+          )}
         </div>
       </nav>
 
