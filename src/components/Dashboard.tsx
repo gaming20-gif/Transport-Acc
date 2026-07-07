@@ -153,11 +153,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
       }
       return new Date(b.date).getTime() - new Date(a.date).getTime();
     })
-    .slice(0, 5);
+    .slice(0, 50);
   
-  // Filter recent expenses based on the active tab categories
+  // Get recent expenses (show all categories so entries added elsewhere or in other tab are visible)
   const recentExpenses = [...transactions]
-    .filter(t => t.type === 'expense' && currentExpenseCategories.includes(t.category))
+    .filter(t => t.type === 'expense')
     .sort((a, b) => {
       if (a.createdAt && b.createdAt) {
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
@@ -167,13 +167,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
       }
       return new Date(b.date).getTime() - new Date(a.date).getTime();
     })
-    .slice(0, 5);
+    .slice(0, 50);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
         <div className="page-title-group">
-          <h1>Dashboard (Quick Entry)</h1>
+          <h1>Dashboard</h1>
           <p className="page-subtitle">Rapidly record income and expenses across your fleet.</p>
         </div>
         
@@ -199,7 +199,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       <div id="income-grid" className="card" style={{ borderTop: '4px solid var(--color-success)', overflowX: 'auto', padding: '16px' }}>
         <h3 className="card-title" style={{ color: 'var(--color-success)', marginBottom: '16px' }}>Add Income</h3>
 
-        <div className="table-container">
+        <div className="table-container" style={{ maxHeight: '400px', overflowY: 'auto' }}>
           <table className="custom-table" style={{ minWidth: '1400px' }}>
             <thead>
               <tr>
@@ -321,13 +321,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </button>
         </div>
 
-        <div className="table-container">
+        <div className="table-container" style={{ maxHeight: '400px', overflowY: 'auto' }}>
           <table className="custom-table" style={{ minWidth: '1200px' }}>
             <thead>
               <tr>
                 <th style={{ width: '130px', textAlign: 'center' }}>Date</th>
                 <th style={{ width: '160px', textAlign: 'center' }}>Vehicle</th>
-                <th style={{ width: '200px' }}>{activeExpenseTab === 'fixed' ? 'Fixed Category' : 'Maintenance Cost Type'}</th>
+                <th style={{ width: '200px' }}>Category</th>
                 <th style={{ width: '180px' }}>Party Name</th>
                 <th style={{ textAlign: 'right', width: '140px' }}>Amount</th>
                 <th style={{ width: '150px', textAlign: 'center' }}>Payable Status</th>
