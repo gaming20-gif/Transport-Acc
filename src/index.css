@@ -186,10 +186,10 @@ h1, h2, h3, h4, h5, h6 {
 /* Top Navbar */
 .top-navbar {
   height: 64px;
-  background-color: var(--bg-navbar);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background-color: var(--bg-navbar) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.25) !important;
   display: flex;
   align-items: center;
   position: fixed;
@@ -198,7 +198,7 @@ h1, h2, h3, h4, h5, h6 {
   right: 0;
   z-index: 100;
   transition: all var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15) !important;
 }
 
 .top-navbar-brand {
@@ -206,7 +206,7 @@ h1, h2, h3, h4, h5, h6 {
   display: flex;
   align-items: center;
   gap: 12px;
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  border-right: 1px solid rgba(212, 175, 55, 0.15) !important;
   height: 100%;
 }
 
@@ -214,20 +214,24 @@ h1, h2, h3, h4, h5, h6 {
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  background: var(--accent-primary-glow);
+  background: linear-gradient(135deg, #FCF6BA 0%, #D4AF37 100%) !important;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--accent-primary);
+  color: #1A1A1A !important;
+  font-family: 'Cinzel', serif;
   font-weight: 700;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-  font-size: 0.9rem;
+  box-shadow: 0 0 12px rgba(212, 175, 55, 0.45) !important;
+  font-size: 1rem;
+  border: 1px solid rgba(212, 175, 55, 0.3) !important;
 }
 
 .top-navbar-title {
-  font-size: 1.1rem;
+  font-family: 'Cinzel', serif;
+  font-size: 1.15rem;
   font-weight: 700;
-  color: var(--text-navbar-primary);
+  letter-spacing: 0.08em;
+  color: #F0E6D2 !important;
 }
 
 .top-navbar-menu {
@@ -506,20 +510,34 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Card Styling */
 .card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-md);
-  padding: 24px;
-  transition: border-color var(--transition-speed) ease;
+  background: var(--bg-card) !important;
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(212, 175, 55, 0.18) !important;
+  border-radius: 20px !important;
+  padding: 26px !important;
+  margin-bottom: 24px;
+  position: relative;
+  box-shadow: 
+    0 10px 30px -10px rgba(0, 0, 0, 0.05),
+    0 1px 3px rgba(212, 175, 55, 0.05) !important;
+  transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1) !important;
   animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .card:hover {
-  border-color: var(--border-color);
+  transform: translateY(-5px);
+  box-shadow: 
+    0 20px 40px -15px rgba(0, 0, 0, 0.12),
+    0 0 25px rgba(212, 175, 55, 0.15) !important;
+  border-color: rgba(212, 175, 55, 0.45) !important;
 }
 
 .card-title {
-  font-size: 1.1rem;
+  font-family: 'Cinzel', 'Playfair Display', serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
   color: var(--text-primary);
   margin-bottom: 16px;
   display: flex;
@@ -572,32 +590,42 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Success Card */
 .stat-card.success .stat-icon-wrapper {
-  background-color: var(--color-success-bg);
-  color: var(--color-success);
+  background: rgba(63, 154, 103, 0.12) !important;
+  color: #3F9A67 !important;
+  border: 1px solid rgba(63, 154, 103, 0.25) !important;
 }
 .stat-card.success .stat-value {
-  color: var(--color-success);
+  color: #3F9A67 !important;
 }
 
 /* Danger Card */
 .stat-card.danger .stat-icon-wrapper {
-  background-color: var(--color-danger-bg);
-  color: var(--color-danger);
+  background: rgba(217, 106, 75, 0.12) !important;
+  color: #D96A4B !important;
+  border: 1px solid rgba(217, 106, 75, 0.25) !important;
 }
 .stat-card.danger .stat-value {
-  color: var(--color-danger);
+  color: #D96A4B !important;
 }
 
 /* Primary Color Card */
 .stat-card.primary .stat-icon-wrapper {
-  background-color: var(--accent-primary-glow);
-  color: #a5b4fc;
+  background: rgba(212, 175, 55, 0.12) !important;
+  color: #D4AF37 !important;
+  border: 1px solid rgba(212, 175, 55, 0.3) !important;
+}
+.stat-card.primary .stat-value {
+  color: #D4AF37 !important;
 }
 
 /* Info Card */
 .stat-card.info .stat-icon-wrapper {
-  background-color: var(--color-info-bg);
-  color: var(--color-info);
+  background: rgba(188, 174, 154, 0.12) !important;
+  color: #BCAE9A !important;
+  border: 1px solid rgba(188, 174, 154, 0.25) !important;
+}
+.stat-card.info .stat-value {
+  color: var(--text-primary) !important;
 }
 
 /* Dashboard Grid Layout */
@@ -635,13 +663,14 @@ h1, h2, h3, h4, h5, h6 {
 
 .custom-table th {
   padding: 14px 16px;
-  color: var(--accent-900);
-  font-weight: 600;
+  color: var(--text-primary) !important;
+  font-family: 'Cinzel', 'Playfair Display', serif;
+  font-weight: 700;
   border-bottom: 1px solid var(--border-color);
   border-right: 1px solid var(--border-color);
   text-transform: uppercase;
   font-size: 0.75rem;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
 }
 
 .custom-table th:last-child {
@@ -727,13 +756,13 @@ h1, h2, h3, h4, h5, h6 {
 .form-control, .form-select, .form-textarea {
   width: 100%;
   padding: 12px 16px;
-  background-color: #FFFFFF !important;
-  border: 1px solid #D1D9E0 !important;
+  background-color: var(--bg-input) !important;
+  border: 1px solid rgba(212, 175, 55, 0.25) !important;
   border-radius: var(--border-radius-sm);
-  color: #1A1A1A !important;
+  color: var(--text-primary) !important;
   font-family: var(--font-sans);
   font-size: 0.95rem;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
 }
 
 .form-control::placeholder, .form-select::placeholder, .form-textarea::placeholder {
@@ -742,8 +771,9 @@ h1, h2, h3, h4, h5, h6 {
 
 .form-control:focus, .form-select:focus, .form-textarea:focus {
   outline: none;
-  border-color: var(--accent-primary) !important;
-  box-shadow: 0 0 0 3px rgba(24, 95, 165, 0.15) !important;
+  border-color: #D4AF37 !important;
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.22) !important;
+  transform: scale(1.005);
 }
 
 .form-row {
@@ -1433,10 +1463,16 @@ h1, h2, h3, h4, h5, h6 {
    Luxury Gold & Black Micro-Animations
    ========================================================================== */
 
-/* Shifting Page Background (Studio Light simulation) */
+/* Shifting Page Background with Luxury Gold Grid Pattern & Radial Studio Glows */
 body {
-  background: radial-gradient(circle at 50% 50%, var(--bg-main) 0%, rgba(26, 26, 26, 0.03) 100%) !important;
-  background-size: 160% 160% !important;
+  background-color: var(--bg-main) !important;
+  background-image: 
+    radial-gradient(circle at 10% 20%, rgba(212, 175, 55, 0.05) 0%, transparent 40%),
+    radial-gradient(circle at 90% 80%, rgba(212, 175, 55, 0.06) 0%, transparent 40%),
+    linear-gradient(rgba(212, 175, 55, 0.015) 1px, transparent 1px), 
+    linear-gradient(90deg, rgba(212, 175, 55, 0.015) 1px, transparent 1px) !important;
+  background-size: 100% 100%, 100% 100%, 30px 30px, 30px 30px !important;
+  background-attachment: fixed !important;
   animation: bodyAmbientLight 12s ease-in-out infinite alternate !important;
 }
 
@@ -1511,6 +1547,125 @@ body {
 
 .btn:hover::after, .submit-btn:hover::after, .auth-btn:hover::after {
   left: 110%;
+}
+
+/* ==========================================================================
+   Income and Expense Grid Luxury Styling & Animations
+   ========================================================================== */
+
+/* Animated Income Card Header with Light Gold Shimmer */
+#income-grid {
+  border-top: 4px solid #F0E6D2 !important; /* Champagne/Light Gold */
+  position: relative;
+  transition: all 0.4s ease;
+}
+
+#income-grid::before {
+  content: '';
+  position: absolute;
+  top: -4px; left: 0; width: 100%; height: 4px;
+  background: linear-gradient(90deg, #F0E6D2, #FFF9D0, #D4AF37, #FFF9D0, #F0E6D2);
+  background-size: 200% 100%;
+  animation: goldBorderAnim 3s linear infinite;
+  z-index: 10;
+}
+
+#income-grid .card-title {
+  color: #D4AF37 !important; /* Gold */
+  background: linear-gradient(90deg, #D4AF37, #FFF9D0, #D4AF37);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent !important;
+  font-weight: 700;
+  display: inline-block;
+  animation: goldTextPulse 4s ease-in-out infinite;
+}
+
+/* Animated Expense Card Header with Dark Gold Shimmer */
+#expense-grid {
+  border-top: 4px solid #AA771C !important; /* Dark Gold/Bronze */
+  position: relative;
+  transition: all 0.4s ease;
+}
+
+#expense-grid::before {
+  content: '';
+  position: absolute;
+  top: -4px; left: 0; width: 100%; height: 4px;
+  background: linear-gradient(90deg, #AA771C, #D4AF37, #B38728, #AA771C);
+  background-size: 200% 100%;
+  animation: goldBorderAnim 3.5s linear infinite;
+  z-index: 10;
+}
+
+#expense-grid .card-title, #expense-grid h3 {
+  color: #AA771C !important;
+  background: linear-gradient(90deg, #AA771C, #B38728, #AA771C);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent !important;
+  font-weight: 700;
+  display: inline-block;
+  animation: goldTextPulse 4s ease-in-out infinite 2s;
+}
+
+/* Custom buttons for Income and Expense grids */
+.btn-income-save {
+  background: linear-gradient(135deg, #FCF6BA 0%, #D4AF37 100%) !important;
+  color: #1A1A1A !important;
+  border: 1px solid rgba(212, 175, 55, 0.45) !important;
+  font-weight: 700 !important;
+  box-shadow: 0 4px 10px rgba(212, 175, 55, 0.15) !important;
+}
+
+.btn-income-save:hover {
+  background: linear-gradient(135deg, #FFF9D0 0%, #E6C24C 100%) !important;
+  box-shadow: 0 6px 15px rgba(212, 175, 55, 0.3) !important;
+  transform: translateY(-2px);
+}
+
+.btn-expense-save {
+  background: linear-gradient(135deg, #D4AF37 0%, #AA771C 100%) !important;
+  color: #FFFFFF !important;
+  border: 1px solid rgba(170, 119, 28, 0.45) !important;
+  font-weight: 700 !important;
+  box-shadow: 0 4px 10px rgba(170, 119, 28, 0.15) !important;
+}
+
+.btn-expense-save:hover {
+  background: linear-gradient(135deg, #E6C24C 0%, #C29330 100%) !important;
+  box-shadow: 0 6px 15px rgba(170, 119, 28, 0.3) !important;
+  transform: translateY(-2px);
+}
+
+@keyframes goldBorderAnim {
+  0% { background-position: 0% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@keyframes goldTextPulse {
+  0%, 100% { opacity: 0.95; filter: brightness(1); }
+  50% { opacity: 1; filter: brightness(1.2); }
+}
+
+/* Premium Table Row Sliding Highlight */
+.custom-table tbody tr {
+  transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1) !important;
+}
+
+.custom-table tbody tr:hover {
+  background-color: rgba(212, 175, 55, 0.045) !important;
+  transform: translateX(4px);
+  box-shadow: inset 3px 0 0 #D4AF37 !important; /* Gold side accent marker */
+}
+
+/* Micro scaling transition for stats icons on hover */
+.stat-card:hover .stat-icon-wrapper {
+  transform: scale(1.15) rotate(5deg) !important;
+  box-shadow: 0 4px 10px rgba(212, 175, 55, 0.25) !important;
+}
+.stat-icon-wrapper {
+  transition: all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
 }
 
 

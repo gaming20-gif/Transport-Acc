@@ -259,7 +259,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <input type="text" className="form-control form-control-sm" placeholder="Check#, UPI ID..." value={incEvidence} onChange={e => setIncEvidence(e.target.value)} style={{ width: '100%' }} />
                 </td>
                 <td style={{ textAlign: 'center' }}>
-                  <button className="btn btn-primary btn-sm" onClick={handleSaveIncomeRow} disabled={vehicles.length === 0 || !incVehicleId || !incPaymentMode || !incAmount || Number(incAmount) <= 0} style={{ backgroundColor: '#3B82F6', color: '#fff', width: '100%' }}>
+                  <button className="btn btn-income-save btn-sm" onClick={handleSaveIncomeRow} disabled={vehicles.length === 0 || !incVehicleId || !incPaymentMode || !incAmount || Number(incAmount) <= 0} style={{ width: '100%' }}>
                     <Save size={14} /> Add
                   </button>
                 </td>
@@ -307,14 +307,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
         <div style={{ display: 'flex', gap: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
           <button 
             className={`btn ${activeExpenseTab === 'fixed' ? 'btn-primary' : 'btn-secondary'}`}
-            style={activeExpenseTab === 'fixed' ? { backgroundColor: 'var(--color-danger)', color: '#fff', borderColor: 'var(--color-danger)' } : {}}
+            style={activeExpenseTab === 'fixed' ? { backgroundColor: '#AA771C', color: '#fff', borderColor: '#AA771C' } : {}}
             onClick={() => setActiveExpenseTab('fixed')}
           >
             🏢 Fixed Expenses
           </button>
           <button 
             className={`btn ${activeExpenseTab === 'maintenance' ? 'btn-primary' : 'btn-secondary'}`}
-            style={activeExpenseTab === 'maintenance' ? { backgroundColor: 'var(--color-danger)', color: '#fff', borderColor: 'var(--color-danger)' } : {}}
+            style={activeExpenseTab === 'maintenance' ? { backgroundColor: '#AA771C', color: '#fff', borderColor: '#AA771C' } : {}}
             onClick={() => setActiveExpenseTab('maintenance')}
           >
             🔧 Maintenance Expenses
@@ -373,7 +373,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <input type="text" className="form-control form-control-sm" placeholder="Ref/Notes/Evidence" value={expDesc} onChange={e => setExpDesc(e.target.value)} style={{ width: '100%' }} />
                 </td>
                 <td style={{ textAlign: 'center' }}>
-                  <button className="btn btn-primary btn-sm" onClick={handleSaveExpenseRow} disabled={vehicles.length === 0 || !expVehicleId || !expCategory || !expAmount} style={{ backgroundColor: '#F2994A', color: '#fff', width: '100%' }}>
+                  <button className="btn btn-expense-save btn-sm" onClick={handleSaveExpenseRow} disabled={vehicles.length === 0 || !expVehicleId || !expCategory || !expAmount} style={{ width: '100%' }}>
                     <Save size={14} /> Add
                   </button>
                 </td>
