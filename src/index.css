@@ -1429,4 +1429,88 @@ h1, h2, h3, h4, h5, h6 {
   gap: 8px;
 }
 
+/* ==========================================================================
+   Luxury Gold & Black Micro-Animations
+   ========================================================================== */
+
+/* Shifting Page Background (Studio Light simulation) */
+body {
+  background: radial-gradient(circle at 50% 50%, var(--bg-main) 0%, rgba(26, 26, 26, 0.03) 100%) !important;
+  background-size: 160% 160% !important;
+  animation: bodyAmbientLight 12s ease-in-out infinite alternate !important;
+}
+
+@keyframes bodyAmbientLight {
+  0% { background-position: 0% 0%; }
+  50% { background-position: 100% 100%; }
+  100% { background-position: 0% 100%; }
+}
+
+/* Premium Gold Shimmer for Active Navbar Item */
+.top-navbar-item.active {
+  background: linear-gradient(
+    90deg, 
+    #AA771C 0%, 
+    #D4AF37 25%, 
+    #FFF9D0 50%, 
+    #D4AF37 75%, 
+    #AA771C 100%
+  ) !important;
+  background-size: 200% 100% !important;
+  animation: goldNavbarActiveShimmer 4s linear infinite !important;
+  color: #1A1A1A !important;
+  font-weight: 700 !important;
+  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.25) !important;
+}
+
+.top-navbar-item.active .top-navbar-item-icon {
+  color: #1A1A1A !important;
+}
+
+@keyframes goldNavbarActiveShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Fluid Hover Effects for All Cards (Stats, Vehicles, Transaction Cards) */
+.card, .stat-card, .vehicle-card, .chart-container, .profile-trigger-btn {
+  transition: transform 0.4s cubic-bezier(0.165, 0.84, 0.44, 1), 
+              box-shadow 0.4s cubic-bezier(0.165, 0.84, 0.44, 1), 
+              border-color 0.4s cubic-bezier(0.165, 0.84, 0.44, 1) !important;
+}
+
+.card:hover, .stat-card:hover, .vehicle-card:hover, .chart-container:hover, .profile-trigger-btn:hover {
+  transform: translateY(-5px) scale(1.008) !important;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15), 0 0 15px rgba(212, 175, 55, 0.15) !important;
+  border-color: rgba(212, 175, 55, 0.4) !important;
+}
+
+/* Diagonal Light Sweep for Buttons on Hover */
+.btn, .submit-btn, .auth-btn {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn::after, .submit-btn::after, .auth-btn::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -110%;
+  width: 220%;
+  height: 200%;
+  background: linear-gradient(
+    135deg, 
+    transparent 35%, 
+    rgba(255, 255, 255, 0.4) 50%, 
+    transparent 65%
+  );
+  transform: rotate(25deg);
+  transition: all 0.75s ease-in-out;
+  pointer-events: none;
+}
+
+.btn:hover::after, .submit-btn:hover::after, .auth-btn:hover::after {
+  left: 110%;
+}
+
 
