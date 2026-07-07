@@ -7,8 +7,7 @@ import {
   LogOut,
   ChevronDown,
   Sun,
-  Moon,
-  Sparkles
+  Moon
 } from 'lucide-react';
 import type { Vehicle, Transaction, User } from './types';
 import { getVehicles, getTransactions, initSampleData, importData, getMe } from './utils/storage';
@@ -19,7 +18,6 @@ import { Reports } from './components/Reports';
 import { Trips } from './components/Trips';
 import { Pending } from './components/Pending';
 import { Auth } from './components/Auth';
-import { PaletteShowcase } from './components/PaletteShowcase';
 
 function App() {
   const [activeTab, setActiveTab] = useState<string>('dashboard');
@@ -178,10 +176,6 @@ function App() {
             refreshData={refreshData}
           />
         );
-      case 'showcase':
-        return (
-          <PaletteShowcase />
-        );
 
       default:
         return (
@@ -235,6 +229,51 @@ function App() {
 
   return (
     <div className="app-container">
+      {/* Global Luxury Background Particles */}
+      <div className="global-bg-overlay">
+        {/* Animated Wave Background Layers */}
+        <div className="global-waves-container">
+          <svg className="bg-wave-svg" viewBox="0 0 1440 800" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="waveGoldGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="rgba(212, 175, 55, 0.05)" />
+                <stop offset="50%" stopColor="rgba(255, 249, 208, 0.01)" />
+                <stop offset="100%" stopColor="rgba(212, 175, 55, 0.04)" />
+              </linearGradient>
+              <linearGradient id="waveGoldGrad2" x1="100%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="rgba(170, 119, 28, 0.04)" />
+                <stop offset="50%" stopColor="rgba(212, 175, 55, 0.008)" />
+                <stop offset="100%" stopColor="rgba(170, 119, 28, 0.03)" />
+              </linearGradient>
+            </defs>
+            {/* Wave 1 */}
+            <path className="bg-wave path-1" d="M 0,320 C 320,240 640,460 960,340 C 1280,220 1360,360 1440,320 L 1440,800 L 0,800 Z" fill="url(#waveGoldGrad1)" />
+            {/* Wave 2 */}
+            <path className="bg-wave path-2" d="M 0,380 C 420,220 740,510 1060,380 C 1380,250 1410,420 1440,380 L 1440,800 L 0,800 Z" fill="url(#waveGoldGrad2)" />
+          </svg>
+        </div>
+        {Array.from({ length: 15 }).map((_, i) => {
+          const speed = `${10 + (i % 4) * 3}s`;
+          const delay = `${-(i * 1.6)}s`;
+          const left = `${(i * 6.5) + 3}%`;
+          const size = `${(i % 3) + 2}px`;
+          const drift = `${(i % 2 === 0 ? 40 : -40)}px`;
+          return (
+            <div
+              key={i}
+              className="global-gold-particle"
+              style={{
+                left,
+                width: size,
+                height: size,
+                animationDelay: delay,
+                animation: `floatUpGlobal ${speed} linear infinite`,
+                '--drift': drift
+              } as React.CSSProperties}
+            />
+          );
+        })}
+      </div>
       {/* Top Navbar */}
       <nav className="top-navbar">
         <div className="top-navbar-brand">
@@ -300,16 +339,6 @@ function App() {
             >
               <FileBarChart2 className="top-navbar-item-icon" />
               <span className="top-navbar-item-text">P&L (Profit and Loss)</span>
-            </button>
-          </li>
-          <li>
-            <button 
-              className={`top-navbar-item ${activeTab === 'showcase' ? 'active' : ''}`}
-              onClick={() => setActiveTab('showcase')}
-              style={{ border: 'none', background: 'transparent' }}
-            >
-              <Sparkles className="top-navbar-item-icon" />
-              <span className="top-navbar-item-text">Palette Showcase</span>
             </button>
           </li>
         </ul>
