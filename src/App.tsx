@@ -7,7 +7,8 @@ import {
   LogOut,
   ChevronDown,
   Sun,
-  Moon
+  Moon,
+  Sparkles
 } from 'lucide-react';
 import type { Vehicle, Transaction, User } from './types';
 import { getVehicles, getTransactions, initSampleData, importData, getMe } from './utils/storage';
@@ -18,6 +19,7 @@ import { Reports } from './components/Reports';
 import { Trips } from './components/Trips';
 import { Pending } from './components/Pending';
 import { Auth } from './components/Auth';
+import { PaletteShowcase } from './components/PaletteShowcase';
 
 function App() {
   const [activeTab, setActiveTab] = useState<string>('dashboard');
@@ -176,6 +178,10 @@ function App() {
             refreshData={refreshData}
           />
         );
+      case 'showcase':
+        return (
+          <PaletteShowcase />
+        );
 
       default:
         return (
@@ -296,7 +302,16 @@ function App() {
               <span className="top-navbar-item-text">P&L (Profit and Loss)</span>
             </button>
           </li>
-
+          <li>
+            <button 
+              className={`top-navbar-item ${activeTab === 'showcase' ? 'active' : ''}`}
+              onClick={() => setActiveTab('showcase')}
+              style={{ border: 'none', background: 'transparent' }}
+            >
+              <Sparkles className="top-navbar-item-icon" />
+              <span className="top-navbar-item-text">Palette Showcase</span>
+            </button>
+          </li>
         </ul>
 
         <div className="top-navbar-user-section">
