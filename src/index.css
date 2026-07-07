@@ -5,54 +5,54 @@
   --font-title: 'Manrope', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
-  /* Theme Mappings - Stepped Layered Meadow Sunrise Mode */
-  --bg-main: #F8FBF8; /* page background (soft warm ivory with a faint herbal mint tint) */
+  /* Theme Mappings - Premium Luxury Gold & Black Mode */
+  --bg-main: #FAF9F6; /* Champagne white ivory background */
   --bg-card: #FFFFFF; /* Card / table container background: #FFFFFF */
-  --bg-sidebar: #1E3E37; /* deep forest emerald */
-  --bg-navbar: #1E3E37; /* Top navigation bar: #1E3E37 */
+  --bg-sidebar: #1A1A1A; /* Rich Black */
+  --bg-navbar: #1A1A1A; /* Rich Black */
   --bg-input: #FFFFFF;
   
-  --border-color: #E2EAE5; /* Row/cell borders: #E2EAE5 */
-  --border-glow: #C7DBD0;
+  --border-color: #EBE6DC; /* soft warm champagne-border */
+  --border-glow: #D4AF37;
 
-  --text-primary: #252B29; /* soft black text: #252B29 */
-  --text-secondary: #606E6A; /* slate charcoal */
-  --text-muted: #8F9E99;
+  --text-primary: #1A1A1A; /* Rich Black text */
+  --text-secondary: #5A544A; /* warm charcoal */
+  --text-muted: #9E9688;
 
   /* Navbar specifics */
   --text-navbar-primary: #FFFFFF;
-  --text-navbar-secondary: #A6BEB6;
-  --bg-navbar-hover: rgba(255, 255, 255, 0.08);
-  --bg-navbar-active: #4BAE78; /* active nav item: fresh mint */
-  --text-navbar-active: #FFFFFF;
+  --text-navbar-secondary: #BCAE9A;
+  --bg-navbar-hover: rgba(255, 255, 255, 0.06);
+  --bg-navbar-active: #D4AF37; /* active nav item: Gold */
+  --text-navbar-active: #1A1A1A; /* dark text on gold active nav */
 
   /* Accent ramp */
-  --accent-50: #EEF4F0; /* Table header row background */
-  --accent-100: #D8E7DF;
-  --accent-400: #4BAE78;
-  --accent-600: #3B8C5F;
-  --accent-800: #1E3E37;
-  --accent-900: #122823;
+  --accent-50: #F7F5F0; /* Table header row background */
+  --accent-100: #EBE6DC;
+  --accent-400: #D4AF37; /* Gold */
+  --accent-600: #B38F23;
+  --accent-800: #1A1A1A;
+  --accent-900: #000000;
 
-  --accent-primary: #4BAE78; /* links / totals / highlighted numbers */
-  --accent-primary-hover: #3B8C5F;
-  --accent-primary-glow: #EEF4F0;
+  --accent-primary: #D4AF37; /* Gold links / totals / highlighted numbers */
+  --accent-primary-hover: #B38F23;
+  --accent-primary-glow: rgba(212, 175, 55, 0.1);
 
   /* Reserved semantic colors */
-  --color-success: #4BAE78; /* fresh mint green */
-  --color-success-bg: #EAF7F0; /* light mint bg */
-  --color-success-text: #2D774D;
+  --color-success: #3F9A67;
+  --color-success-bg: #EEF8F3;
+  --color-success-text: #235F3D;
 
-  --color-danger: #E28766; /* warm terracotta/coral */
-  --color-danger-bg: #FCF1EC;
-  --color-danger-text: #964A2F;
+  --color-danger: #D96A4B;
+  --color-danger-bg: #FDF1EE;
+  --color-danger-text: #8C341D;
   
-  --color-warning: #56CCF2; /* pending status: soft sky blue */
-  --color-warning-bg: #EBF9FD;
-  --color-warning-text: #1B7898;
+  --color-warning: #D4AF37; /* pending status: Gold */
+  --color-warning-bg: #FFFDF5;
+  --color-warning-text: #856404;
 
-  --color-info: #56CCF2;
-  --color-info-bg: #EBF9FD;
+  --color-info: #BCAE9A;
+  --color-info-bg: #FAF9F6;
 
   --shadow-sm: none;
   --shadow-md: none;
@@ -71,46 +71,46 @@
   --font-title: 'Manrope', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
-  /* Theme Mappings - Stepped Layered Meadow Sunrise Dark Mode */
-  --bg-main: #101F1C; /* deep forest night */
-  --bg-card: #1E3731; /* Card fills */
-  --bg-sidebar: #172E29; 
-  --bg-navbar: #172E29;
-  --bg-input: #101F1C;
+  /* Theme Mappings - Premium Luxury Gold & Black Dark Mode */
+  --bg-main: #0A0A0A; /* Pure Black */
+  --bg-card: #1A1A1A; /* Rich Black */
+  --bg-sidebar: #111111; 
+  --bg-navbar: #111111;
+  --bg-input: #0A0A0A;
   
-  --border-color: #284942;
-  --border-glow: #4BAE78;
+  --border-color: #2D281E; /* subtle gold/charcoal border */
+  --border-glow: #D4AF37;
 
-  --text-primary: #E2EFEA; 
-  --text-secondary: #A0B0AA; 
-  --text-muted: #6E7E79;
+  --text-primary: #F0E6D2; /* Champagne Gold text */
+  --text-secondary: #BCAE9A; 
+  --text-muted: #7A7264;
 
   /* Navbar specifics */
-  --text-navbar-primary: #E2EFEA;
-  --text-navbar-secondary: #A0B0AA;
-  --bg-navbar-hover: rgba(255, 255, 255, 0.08);
-  --bg-navbar-active: #4BAE78;
-  --text-navbar-active: #FFFFFF;
+  --text-navbar-primary: #F0E6D2;
+  --text-navbar-secondary: #7A7264;
+  --bg-navbar-hover: rgba(255, 255, 255, 0.04);
+  --bg-navbar-active: #D4AF37;
+  --text-navbar-active: #000000;
 
-  --accent-primary: #4BAE78;
-  --accent-primary-hover: #59C990;
-  --accent-primary-glow: rgba(75, 174, 120, 0.25);
+  --accent-primary: #D4AF37; /* Gold */
+  --accent-primary-hover: #FCF6BA;
+  --accent-primary-glow: rgba(212, 175, 55, 0.25);
 
   /* Reserved semantic colors */
   --color-success: #59C990;
-  --color-success-bg: rgba(89, 201, 144, 0.12);
+  --color-success-bg: rgba(89, 201, 144, 0.1);
   --color-success-text: #59C990;
 
   --color-danger: #FFA080;
   --color-danger-bg: rgba(255, 160, 128, 0.12);
   --color-danger-text: #FFA080;
   
-  --color-warning: #80DEEA;
-  --color-warning-bg: rgba(128, 222, 234, 0.12);
-  --color-warning-text: #80DEEA;
+  --color-warning: #D4AF37;
+  --color-warning-bg: rgba(212, 175, 55, 0.1);
+  --color-warning-text: #D4AF37;
 
-  --color-info: #80DEEA;
-  --color-info-bg: rgba(128, 222, 234, 0.12);
+  --color-info: #BCAE9A;
+  --color-info-bg: rgba(188, 174, 154, 0.1);
 }
 
 /* Monospace alignment for financial/numeric table columns */
