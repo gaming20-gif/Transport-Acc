@@ -287,21 +287,32 @@ export const Trips: React.FC<TripsProps> = ({ vehicles, refreshData }) => {
       evidenceName
     };
 
-    await updateTrip(updatedTripData);
-    await syncTripTransactions(updatedTripData);
+    // Optimistic Update
+    setTrips(prev => prev.map(t => t.id === currentTrip.id ? updatedTripData : t));
 
     setIsEditModalOpen(false);
     setCurrentTrip(null);
     resetForm();
-    await loadTripsData();
-    refreshData();
+
+    // Background requests
+    updateTrip(updatedTripData).then(() => {
+      syncTripTransactions(updatedTripData).then(() => {
+        loadTripsData();
+        refreshData();
+      });
+    });
   };
 
   const handleDeleteTrip = async (id: string, num: string) => {
     if (window.confirm(`Are you sure you want to delete Trip ${num}? All corresponding ledger entries will be permanently removed.`)) {
-      await deleteTrip(id);
-      await loadTripsData();
-      refreshData();
+      // Optimistic delete
+      setTrips(prev => prev.filter(t => t.id !== id));
+      
+      // Background requests
+      deleteTrip(id).then(() => {
+        loadTripsData();
+        refreshData();
+      });
     }
   };
 

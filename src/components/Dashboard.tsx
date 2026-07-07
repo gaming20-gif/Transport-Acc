@@ -18,12 +18,14 @@ interface DashboardProps {
   vehicles: Vehicle[];
   transactions: Transaction[];
   refreshData: () => void;
+  setTransactions?: React.Dispatch<React.SetStateAction<Transaction[]>>;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ 
   vehicles, 
   transactions, 
-  refreshData
+  refreshData,
+  setTransactions
 }) => {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount);
@@ -92,8 +94,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   const handleDelete = async (id: string) => {
     if (window.confirm("Are you sure you want to delete this transaction?")) {
-      await deleteTransaction(id);
-      refreshData();
+      if (setTransactions) {
+        setTransactions(prev => prev.filter(t => t.id !== id));
+      }
+      deleteTransaction(id).then(() => {
+        refreshData();
+      });
     }
   };
 
@@ -104,7 +110,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       return;
     }
 
-    await updateTransaction({
+    const updatedTx = {
       ...t,
       date: editDate,
       vehicleId: editVehicleId,
@@ -116,10 +122,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
       amount: amt,
       paymentMode: editPaymentMode,
       description: editDescription ? editDescription.trim() : ''
-    });
+    };
+
+    if (setTransactions) {
+      setTransactions(prev => prev.map(item => item.id === t.id ? updatedTx : item));
+    }
 
     setEditingTransactionId(null);
-    refreshData();
+    updateTransaction(updatedTx).then(() => {
+      refreshData();
+    });
   };
 
   const handleUpdateExpense = async (t: Transaction) => {
@@ -129,7 +141,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       return;
     }
 
-    await updateTransaction({
+    const updatedTx = {
       ...t,
       date: editDate,
       vehicleId: editVehicleId,
@@ -138,10 +150,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
       amount: amt,
       paymentMode: editPaymentMode,
       description: editDescription ? editDescription.trim() : ''
-    });
+    };
+
+    if (setTransactions) {
+      setTransactions(prev => prev.map(item => item.id === t.id ? updatedTx : item));
+    }
 
     setEditingTransactionId(null);
-    refreshData();
+    updateTransaction(updatedTx).then(() => {
+      refreshData();
+    });
   };
 
   // Get unique locations that have appeared at least 3 times in transactions (either in 'from' or 'to')

@@ -312,66 +312,9 @@ export const getGlobalSummary = (vehicles: Vehicle[], transactions: Transaction[
   };
 };
 
-export const syncTripTransactions = async (trip: Trip): Promise<void> => {
-  // We'll let the backend or component handle this manually for simplicity
-  // Or fetch transactions and update
-  const currentTransactions = await getTransactions();
-  
-  // Clean up old transactions linked to this trip
-  const transactionsToDelete = currentTransactions.filter(t => t.tripId === trip.id);
-  for (const t of transactionsToDelete) {
-    await deleteTransaction(t.id);
-  }
-
-  // Create new income transaction for advance received
-  if (trip.advanceReceived && trip.advanceReceived > 0) {
-    await addTransaction({
-      vehicleId: trip.vehicleId,
-      date: trip.date,
-      type: 'income',
-      category: 'Freight Booking',
-      amount: trip.advanceReceived,
-      paymentMode: trip.paymentMode,
-      description: `Advance for Trip ${trip.tripNumber} (${trip.fromLocation} to ${trip.toLocation})`,
-      tripId: trip.id,
-      from: trip.fromLocation,
-      to: trip.toLocation,
-      weight: trip.ton,
-      rate: trip.ratePerTon
-    });
-  }
-
-  // Create expense transactions
-  if (trip.expenses && trip.expenses.length > 0) {
-    for (const exp of trip.expenses) {
-      if (exp.amount > 0) {
-        let category: any = 'Other Expense';
-        
-        switch (exp.category) {
-          case 'Diesel': category = 'Diesel / Fuel'; break;
-          case 'Toll Tax': category = 'Toll Charges'; break;
-          case 'Driver Advance':
-          case 'Driver Salary': category = 'Driver Salary / Batta'; break;
-          case 'Repair & Maintenance': category = 'Maintenance & Repairs'; break;
-          case 'Tyre Expense': category = 'Tyre Expense'; break;
-          case 'Loading Expense':
-          case 'Unloading Expense': category = 'Loading/Unloading Labour'; break;
-          default: category = 'Other Expense';
-        }
-        
-        await addTransaction({
-          vehicleId: trip.vehicleId,
-          date: exp.date || trip.date,
-          type: 'expense',
-          category,
-          amount: exp.amount,
-          paymentMode: 'Cash', // Defaulting to Cash for trip expenses
-          description: `Trip ${trip.tripNumber}: ${exp.remarks || exp.category}`,
-          tripId: trip.id
-        });
-      }
-    }
-  }
+export const syncTripTransactions = async (_trip: Trip): Promise<void> => {
+  // Handled on backend to optimize network requests and database updates.
+  return;
 };
 
 export const generateNextTripNumber = async (): Promise<string> => {

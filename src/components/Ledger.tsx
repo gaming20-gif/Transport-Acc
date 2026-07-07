@@ -13,6 +13,7 @@ interface LedgerProps {
   selectedVehicleId: string | null;
   setSelectedVehicleId: (id: string | null) => void;
   refreshData: () => void;
+  setTransactions?: React.Dispatch<React.SetStateAction<Transaction[]>>;
 }
 
 const INCOME_CATEGORIES: TransactionCategory[] = [
@@ -56,7 +57,8 @@ export const Ledger: React.FC<LedgerProps> = ({
   transactions,
   selectedVehicleId,
   setSelectedVehicleId,
-  refreshData
+  refreshData,
+  setTransactions
 }) => {
   // Modal states
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -155,7 +157,7 @@ export const Ledger: React.FC<LedgerProps> = ({
     const isNowCleared = currentTx.paymentMode === 'Pending' && txPaymentMode !== 'Pending';
     const isNowPending = txPaymentMode === 'Pending';
 
-    await updateTransaction({
+    const updatedTx = {
       ...currentTx,
       date: txDate,
       type: txType,
@@ -166,19 +168,29 @@ export const Ledger: React.FC<LedgerProps> = ({
       evidence: txEvidence || undefined,
       evidenceName: txEvidenceName || undefined,
       wasPending: isNowPending ? false : (isNowCleared ? true : currentTx.wasPending)
-    });
+    };
+
+    if (setTransactions) {
+      setTransactions(prev => prev.map(item => item.id === currentTx.id ? updatedTx : item));
+    }
 
     resetForm();
     setIsEditModalOpen(false);
     setCurrentTx(null);
-    refreshData();
+    updateTransaction(updatedTx).then(() => {
+      refreshData();
+    });
   };
 
   const handleDeleteTx = async (id: string) => {
     const confirmed = window.confirm('Are you sure you want to delete this ledger entry?');
     if (confirmed) {
-      await deleteTransaction(id);
-      refreshData();
+      if (setTransactions) {
+        setTransactions(prev => prev.filter(item => item.id !== id));
+      }
+      deleteTransaction(id).then(() => {
+        refreshData();
+      });
     }
   };
 

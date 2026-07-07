@@ -17,11 +17,11 @@
 
   --text-primary: #1A1A1A; /* Rich Black text */
   --text-secondary: #5A544A; /* warm charcoal */
-  --text-muted: #9E9688;
+  --text-muted: #655D50; /* charcoal-bronze with high contrast */
 
   /* Navbar specifics */
   --text-navbar-primary: #FFFFFF;
-  --text-navbar-secondary: #BCAE9A;
+  --text-navbar-secondary: #D2C5B3; /* slightly lighter for readability in dark navbar */
   --bg-navbar-hover: rgba(255, 255, 255, 0.06);
   --bg-navbar-active: #D4AF37; /* active nav item: Gold */
   --text-navbar-active: #1A1A1A; /* dark text on gold active nav */
@@ -34,25 +34,29 @@
   --accent-800: #1A1A1A;
   --accent-900: #000000;
 
-  --accent-primary: #D4AF37; /* Gold links / totals / highlighted numbers */
-  --accent-primary-hover: #B38F23;
-  --accent-primary-glow: rgba(212, 175, 55, 0.1);
+  --accent-primary: #A3751E; /* Bronze-gold with high contrast */
+  --accent-primary-hover: #8A6014;
+  --accent-primary-glow: rgba(163, 117, 30, 0.1);
 
   /* Reserved semantic colors */
-  --color-success: #3F9A67;
+  --color-success: #2E7D52; /* Darker green for AA compliance */
   --color-success-bg: #EEF8F3;
-  --color-success-text: #235F3D;
+  --color-success-text: #2E7D52;
 
-  --color-danger: #D96A4B;
+  --color-danger: #C55333; /* Darker red for AA compliance */
   --color-danger-bg: #FDF1EE;
-  --color-danger-text: #8C341D;
+  --color-danger-text: #C55333;
   
-  --color-warning: #D4AF37; /* pending status: Gold */
+  --color-warning: #B38F23; /* Darker gold/warning */
   --color-warning-bg: #FFFDF5;
   --color-warning-text: #856404;
 
   --color-info: #BCAE9A;
   --color-info-bg: #FAF9F6;
+
+  /* Card Title Text Gradients */
+  --gradient-income-text: linear-gradient(90deg, #A3751E, #D4AF37, #A3751E);
+  --gradient-expense-text: linear-gradient(90deg, #AA771C, #B38728, #AA771C);
 
   --shadow-sm: none;
   --shadow-md: none;
@@ -118,6 +122,10 @@
 
   --color-info: #BCAE9A;
   --color-info-bg: rgba(188, 174, 154, 0.1);
+
+  /* Card Title Text Gradients for Dark Mode */
+  --gradient-income-text: linear-gradient(90deg, #D4AF37, #FFF9D0, #D4AF37);
+  --gradient-expense-text: linear-gradient(90deg, #AA771C, #B38728, #AA771C);
 }
 
 /* Monospace alignment for financial/numeric table columns */
@@ -1705,9 +1713,9 @@ body {
 
 #income-grid .card-title {
   color: #D4AF37 !important; /* Gold */
-  background: linear-gradient(90deg, #D4AF37, #FFF9D0, #D4AF37);
-  -webkit-background-clip: text;
-  background-clip: text;
+  background: var(--gradient-income-text) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
   color: transparent !important;
   font-weight: 700;
   display: inline-block;
@@ -1733,9 +1741,9 @@ body {
 
 #expense-grid .card-title, #expense-grid h3 {
   color: #AA771C !important;
-  background: linear-gradient(90deg, #AA771C, #B38728, #AA771C);
-  -webkit-background-clip: text;
-  background-clip: text;
+  background: var(--gradient-expense-text) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
   color: transparent !important;
   font-weight: 700;
   display: inline-block;

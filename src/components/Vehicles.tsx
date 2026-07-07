@@ -6,11 +6,13 @@ import { addVehicle, updateVehicle, deleteVehicle } from '../utils/storage';
 interface VehiclesProps {
   vehicles: Vehicle[];
   refreshData: () => void;
+  setVehicles?: React.Dispatch<React.SetStateAction<Vehicle[]>>;
 }
 
 export const Vehicles: React.FC<VehiclesProps> = ({ 
   vehicles,
-  refreshData
+  refreshData,
+  setVehicles
 }) => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -64,9 +66,9 @@ export const Vehicles: React.FC<VehiclesProps> = ({
     e.stopPropagation(); // Avoid triggering card click
     setCurrentVehicle(vehicle);
     setVehicleNumber(vehicle.vehicleNumber);
-    setDriverName(vehicle.driverName);
-    setDriverPhone(vehicle.driverPhone);
-    setOwnerName(vehicle.ownerName);
+    setDriverName(vehicle.driverName || '');
+    setDriverPhone(vehicle.driverPhone || '');
+    setOwnerName(vehicle.ownerName || '');
     setType(vehicle.type);
     setStatus(vehicle.status);
     setIsEditModalOpen(true);
@@ -76,7 +78,7 @@ export const Vehicles: React.FC<VehiclesProps> = ({
     e.preventDefault();
     if (!currentVehicle || !vehicleNumber.trim()) return;
 
-    await updateVehicle({
+    const updatedVehicle = {
       ...currentVehicle,
       vehicleNumber: formatVehicleNumber(vehicleNumber),
       driverName: driverName.trim() || 'Not Assigned',
@@ -84,20 +86,31 @@ export const Vehicles: React.FC<VehiclesProps> = ({
       ownerName: ownerName.trim() || 'Self',
       type,
       status,
-    });
+    };
+
+    if (setVehicles) {
+      setVehicles(prev => prev.map(v => v.id === currentVehicle.id ? updatedVehicle : v));
+    }
 
     resetForm();
     setIsEditModalOpen(false);
     setCurrentVehicle(null);
-    refreshData();
+
+    updateVehicle(updatedVehicle).then(() => {
+      refreshData();
+    });
   };
 
   const handleDelete = async (id: string, number: string, e: React.MouseEvent) => {
     e.stopPropagation(); // Avoid triggering card click
     const confirmed = window.confirm(`Are you sure you want to delete vehicle ${number}? All related ledger transaction history will be permanently deleted!`);
     if (confirmed) {
-      await deleteVehicle(id);
-      refreshData();
+      if (setVehicles) {
+        setVehicles(prev => prev.filter(v => v.id !== id));
+      }
+      deleteVehicle(id).then(() => {
+        refreshData();
+      });
     }
   };
 

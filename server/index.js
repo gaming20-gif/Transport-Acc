@@ -231,11 +231,85 @@ app.put('/api/vehicles/:id', auth, async (req, res) => {
 app.delete('/api/vehicles/:id', auth, async (req, res) => {
   try {
     await Vehicle.findOneAndDelete({ id: req.params.id, userId: req.user.id });
-    res.json({ message: 'Vehicle deleted' });
+    await Transaction.deleteMany({ vehicleId: req.params.id, userId: req.user.id });
+    await Trip.deleteMany({ vehicleId: req.params.id, userId: req.user.id });
+    res.json({ message: 'Vehicle and all related trips/transactions deleted' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
+
+// Helper to sync trip transactions in backend
+async function syncTripTransactionsBackend(trip, userId) {
+  // Delete all existing transactions linked to this trip
+  await Transaction.deleteMany({ tripId: trip.id, userId: userId });
+
+  const newTransactions = [];
+  const generateId = () => Math.random().toString(36).substring(2, 9);
+
+  // 1. Create income transaction for advance received
+  if (trip.advanceReceived && trip.advanceReceived > 0) {
+    const paymentStatus = trip.paymentMode === 'Pending' ? 'Pending' : 'Paid';
+    newTransactions.push({
+      userId: userId,
+      id: generateId(),
+      vehicleId: trip.vehicleId,
+      date: trip.date,
+      type: 'income',
+      category: 'Freight Booking',
+      amount: trip.advanceReceived,
+      paymentMode: trip.paymentMode,
+      description: `Advance for Trip ${trip.tripNumber} (${trip.fromLocation} to ${trip.toLocation})`,
+      tripId: trip.id,
+      from: trip.fromLocation,
+      to: trip.toLocation,
+      weight: trip.ton,
+      rate: trip.ratePerTon,
+      paymentStatus: paymentStatus,
+      payments: []
+    });
+  }
+
+  // 2. Create expense transactions
+  if (trip.expenses && trip.expenses.length > 0) {
+    for (const exp of trip.expenses) {
+      if (exp.amount > 0) {
+        let category = 'Other Expense';
+        
+        switch (exp.category) {
+          case 'Diesel': category = 'Diesel / Fuel'; break;
+          case 'Toll Tax': category = 'Toll Charges'; break;
+          case 'Driver Advance':
+          case 'Driver Salary': category = 'Driver Salary / Batta'; break;
+          case 'Repair & Maintenance': category = 'Maintenance & Repairs'; break;
+          case 'Tyre Expense': category = 'Tyre Expense'; break;
+          case 'Loading Expense':
+          case 'Unloading Expense': category = 'Loading/Unloading Labour'; break;
+          default: category = 'Other Expense';
+        }
+        
+        newTransactions.push({
+          userId: userId,
+          id: generateId(),
+          vehicleId: trip.vehicleId,
+          date: exp.date || trip.date,
+          type: 'expense',
+          category: category,
+          amount: exp.amount,
+          paymentMode: 'Cash',
+          description: `Trip ${trip.tripNumber}: ${exp.remarks || exp.category}`,
+          tripId: trip.id,
+          paymentStatus: 'Paid',
+          payments: []
+        });
+      }
+    }
+  }
+
+  if (newTransactions.length > 0) {
+    await Transaction.insertMany(newTransactions);
+  }
+}
 
 // =======================
 // TRIP ROUTES
@@ -256,6 +330,10 @@ app.post('/api/trips', auth, async (req, res) => {
       userId: req.user.id
     });
     const savedTrip = await newTrip.save();
+    
+    // Sync transactions on backend
+    await syncTripTransactionsBackend(savedTrip, req.user.id);
+    
     res.json(savedTrip);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -269,6 +347,12 @@ app.put('/api/trips/:id', auth, async (req, res) => {
       req.body,
       { new: true }
     );
+    
+    if (updatedTrip) {
+      // Sync transactions on backend
+      await syncTripTransactionsBackend(updatedTrip, req.user.id);
+    }
+    
     res.json(updatedTrip);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -278,7 +362,8 @@ app.put('/api/trips/:id', auth, async (req, res) => {
 app.delete('/api/trips/:id', auth, async (req, res) => {
   try {
     await Trip.findOneAndDelete({ id: req.params.id, userId: req.user.id });
-    res.json({ message: 'Trip deleted' });
+    await Transaction.deleteMany({ tripId: req.params.id, userId: req.user.id });
+    res.json({ message: 'Trip and associated ledger entries deleted' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

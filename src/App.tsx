@@ -135,6 +135,7 @@ function App() {
             vehicles={vehicles} 
             transactions={transactions} 
             refreshData={refreshData}
+            setTransactions={setTransactions}
           />
         );
       case 'vehicles':
@@ -142,6 +143,7 @@ function App() {
           <Vehicles 
             vehicles={vehicles} 
             refreshData={refreshData}
+            setVehicles={setVehicles}
           />
         );
       case 'trips':
@@ -159,6 +161,7 @@ function App() {
             selectedVehicleId={selectedVehicleId}
             setSelectedVehicleId={setSelectedVehicleId}
             refreshData={refreshData}
+            setTransactions={setTransactions}
           />
         );
       case 'reports':
