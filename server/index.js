@@ -125,10 +125,7 @@ app.post('/api/auth/signup', async (req, res) => {
     console.log("Step 7: Saving user");
     await user.save();
 
-    console.log("Step 8: User saved successfully, running migration");
-    await Vehicle.updateMany({ userId: { $exists: false } }, { $set: { userId: user._id } });
-    await Trip.updateMany({ userId: { $exists: false } }, { $set: { userId: user._id } });
-    await Transaction.updateMany({ userId: { $exists: false } }, { $set: { userId: user._id } });
+    // No migration run on signup since MongoDB contains no unowned records.
 
     console.log("Step 9: Generating token");
     const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' });
