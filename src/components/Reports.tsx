@@ -170,9 +170,9 @@ export const Reports: React.FC<ReportsProps> = ({ vehicles, transactions }) => {
     });
 
     return [
-      { name: 'Income (Paid)', value: totalIncome, fill: 'var(--accent-primary)' },
+      { name: 'Income (Paid)', value: totalIncome, fill: 'var(--color-success)' },
       { name: 'Expenses', value: totalExpense, fill: 'var(--color-danger)' },
-      { name: 'Pending Dues', value: totalPending, fill: '#BCAE9A' }
+      { name: 'Pending Dues', value: totalPending, fill: 'var(--color-warning)' }
     ].filter(item => item.value > 0);
   };
 
@@ -672,9 +672,9 @@ export const Reports: React.FC<ReportsProps> = ({ vehicles, transactions }) => {
                     formatter={(value: any) => [formatCurrency(Number(value)), '']}
                   />
                   <Legend verticalAlign="top" height={36} iconType="circle" />
-                  <Bar name="Earnings" dataKey="income" fill="var(--accent-primary)" radius={[4, 4, 0, 0]} />
+                  <Bar name="Earnings" dataKey="income" fill="var(--color-success)" radius={[4, 4, 0, 0]} />
                   <Bar name="Expenses" dataKey="expense" fill="var(--color-danger)" radius={[4, 4, 0, 0]} />
-                  <Bar name="Pending" dataKey="pending" fill="#BCAE9A" radius={[4, 4, 0, 0]} />
+                  <Bar name="Pending" dataKey="pending" fill="var(--color-warning)" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
