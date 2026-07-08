@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Save, Edit2, Trash2, X, Check } from 'lucide-react';
 import type { Vehicle, Transaction, TransactionCategory } from '../types';
 import { addTransaction, updateTransaction, deleteTransaction } from '../utils/storage';
@@ -183,6 +183,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const popularLocations = getPopularLocations();
 
   // --- INCOME EXCEL GRID STATE ---
+  const incFromRef = useRef<HTMLInputElement>(null);
   const [incDate, setIncDate] = useState(today);
   const [incVehicleId, setIncVehicleId] = useState('');
   const [incFrom, setIncFrom] = useState('');
@@ -370,10 +371,48 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     </select>
                   </td>
                   <td>
-                    <input type="text" className="form-control form-control-sm" placeholder="Material (e.g. Coal)" value={incMaterial} onChange={e => setIncMaterial(e.target.value)} style={{ width: '100%', textAlign: 'center' }} />
+                    <input 
+                      id="inc-material-input"
+                      type="text" 
+                      className="form-control form-control-sm" 
+                      placeholder="Material (e.g. Coal)" 
+                      value={incMaterial} 
+                      onChange={e => setIncMaterial(e.target.value)} 
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          setTimeout(() => {
+                            const nextInput = document.getElementById('inc-from-input');
+                            if (nextInput) {
+                              nextInput.focus();
+                              (nextInput as HTMLInputElement).select?.();
+                            }
+                          }, 10);
+                        }
+                      }}
+                      style={{ width: '100%', textAlign: 'center' }} 
+                    />
                   </td>
                   <td>
-                    <input type="text" list="location-suggestions" className="form-control form-control-sm" placeholder="Origin" value={incFrom} onChange={e => setIncFrom(e.target.value)} style={{ width: '100%', textAlign: 'center' }} />
+                    <input 
+                      id="inc-from-input"
+                      ref={incFromRef}
+                      type="text" 
+                      list="location-suggestions" 
+                      className="form-control form-control-sm" 
+                      placeholder="Origin" 
+                      value={incFrom} 
+                      onChange={e => setIncFrom(e.target.value)} 
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          setTimeout(() => {
+                            handleSaveIncomeRow();
+                          }, 10);
+                        }
+                      }}
+                      style={{ width: '100%', textAlign: 'center' }} 
+                    />
                   </td>
                   <td>
                     <input type="text" list="location-suggestions" className="form-control form-control-sm" placeholder="Dest" value={incTo} onChange={e => setIncTo(e.target.value)} style={{ width: '100%', textAlign: 'center' }} />
