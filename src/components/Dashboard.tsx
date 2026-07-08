@@ -407,7 +407,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         if (e.key === 'Enter') {
                           e.preventDefault();
                           setTimeout(() => {
-                            handleSaveIncomeRow();
+                            const el = document.getElementById('inc-to-input');
+                            if (el) { el.focus(); (el as HTMLInputElement).select?.(); }
                           }, 10);
                         }
                       }}
@@ -415,19 +416,103 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     />
                   </td>
                   <td>
-                    <input type="text" list="location-suggestions" className="form-control form-control-sm" placeholder="Dest" value={incTo} onChange={e => setIncTo(e.target.value)} style={{ width: '100%', textAlign: 'center' }} />
+                    <input 
+                      id="inc-to-input"
+                      type="text" 
+                      list="location-suggestions" 
+                      className="form-control form-control-sm" 
+                      placeholder="Dest" 
+                      value={incTo} 
+                      onChange={e => setIncTo(e.target.value)} 
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          setTimeout(() => {
+                            const el = document.getElementById('inc-weight-input');
+                            if (el) { el.focus(); (el as HTMLInputElement).select?.(); }
+                          }, 10);
+                        }
+                      }}
+                      style={{ width: '100%', textAlign: 'center' }} 
+                    />
                   </td>
                   <td>
-                    <input type="number" className="form-control form-control-sm" placeholder="Ton" value={incWeight} onChange={e => setIncWeight(e.target.value)} style={{ width: '100%', textAlign: 'center' }} />
+                    <input 
+                      id="inc-weight-input"
+                      type="number" 
+                      className="form-control form-control-sm" 
+                      placeholder="Ton" 
+                      value={incWeight} 
+                      onChange={e => setIncWeight(e.target.value)} 
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          setTimeout(() => {
+                            const el = document.getElementById('inc-rate-input');
+                            if (el) { el.focus(); (el as HTMLInputElement).select?.(); }
+                          }, 10);
+                        }
+                      }}
+                      style={{ width: '100%', textAlign: 'center' }} 
+                    />
                   </td>
                   <td>
-                    <input type="number" className="form-control form-control-sm" placeholder="₹/Ton" value={incRate} onChange={e => setIncRate(e.target.value)} style={{ width: '100%', textAlign: 'center' }} />
+                    <input 
+                      id="inc-rate-input"
+                      type="number" 
+                      className="form-control form-control-sm" 
+                      placeholder="₹/Ton" 
+                      value={incRate} 
+                      onChange={e => setIncRate(e.target.value)} 
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          setTimeout(() => {
+                            const el = document.getElementById('inc-payment-select');
+                            if (el) { el.focus(); }
+                          }, 10);
+                        }
+                      }}
+                      style={{ width: '100%', textAlign: 'center' }} 
+                    />
                   </td>
                   <td>
-                    <input type="number" className="form-control form-control-sm" placeholder="Total ₹" value={incAmount} onChange={e => setIncAmount(e.target.value)} style={{ textAlign: 'center', fontWeight: 'bold', color: 'var(--color-success)', width: '100%' }} />
+                    <input 
+                      id="inc-amount-input"
+                      type="number" 
+                      className="form-control form-control-sm" 
+                      placeholder="Total ₹" 
+                      value={incAmount} 
+                      onChange={e => setIncAmount(e.target.value)} 
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          setTimeout(() => {
+                            const el = document.getElementById('inc-payment-select');
+                            if (el) { el.focus(); }
+                          }, 10);
+                        }
+                      }}
+                      style={{ textAlign: 'center', fontWeight: 'bold', color: 'var(--color-success)', width: '100%' }} 
+                    />
                   </td>
                   <td>
-                    <select className="form-control form-control-sm" value={incPaymentMode} onChange={e => setIncPaymentMode(e.target.value as any)} style={{ width: '100%', textAlign: 'center' }}>
+                    <select 
+                      id="inc-payment-select"
+                      className="form-control form-control-sm" 
+                      value={incPaymentMode} 
+                      onChange={e => setIncPaymentMode(e.target.value as any)} 
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          setTimeout(() => {
+                            const el = document.getElementById('inc-evidence-input');
+                            if (el) { el.focus(); (el as HTMLInputElement).select?.(); }
+                          }, 10);
+                        }
+                      }}
+                      style={{ width: '100%', textAlign: 'center' }}
+                    >
                       <option value="">Select</option>
                       <option value="Pending">Pending</option>
                       <option value="Cash">Cash</option>
@@ -436,7 +521,23 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     </select>
                   </td>
                   <td>
-                    <input type="text" className="form-control form-control-sm" placeholder="Check#, UPI ID..." value={incEvidence} onChange={e => setIncEvidence(e.target.value)} style={{ width: '100%', textAlign: 'center' }} />
+                    <input 
+                      id="inc-evidence-input"
+                      type="text" 
+                      className="form-control form-control-sm" 
+                      placeholder="Check#, UPI ID..." 
+                      value={incEvidence} 
+                      onChange={e => setIncEvidence(e.target.value)} 
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          setTimeout(() => {
+                            handleSaveIncomeRow();
+                          }, 10);
+                        }
+                      }}
+                      style={{ width: '100%', textAlign: 'center' }} 
+                    />
                   </td>
                   <td style={{ textAlign: 'center' }}>
                     <button className="btn btn-income-save btn-sm" onClick={handleSaveIncomeRow} disabled={vehicles.length === 0 || !incVehicleId || !incPaymentMode || !incAmount || Number(incAmount) <= 0} style={{ width: '100%' }}>
